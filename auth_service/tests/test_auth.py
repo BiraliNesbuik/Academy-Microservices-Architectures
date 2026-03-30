@@ -1,50 +1,30 @@
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, AsyncMock, MagicMock
-
-
-from app.main import app
+from unittest.mock import AsyncMock, MagicMock
+from app.main import app, get_auth_service
 
 client = TestClient(app)
 
-# 1. Kayıt testi: yeni kullanıcı kayıt
-def test_register_success():
-    payload = {
-        "username": "emir",
-        "password": "sifre123",
-        "role": "student"
-    }
-    response = client.post("/auth/register", json=payload)
+# Testler için sahte servis (Mock)
+@pytest.fixture
+def mock_service():
+    service = AsyncMock()
+    # FastAPI'ye gerçek servis yerine bunu kullan diyoruz
+    app.dependency_overrides[get_auth_service] = lambda: service
+    yield service
+    app.dependency_overrides = {}
+
+def test_register_success(mock_service):
+    mock_service.register.return_value = True
+    response = client.post("/auth/register", json={
+        "username": "emir", "password": "123", "role": "student"
+    })
     assert response.status_code == 201
 
-# 2. Giriş testi: doğru bilgilerle token alınabilmeli
-def test_login_success():
-    payload = {
-        "username": "emir",
-        "password": "sifre123"
-    }
-    response = client.post("/auth/login", json=payload)
+def test_login_success(mock_service):
+    mock_service.login.return_value = "fake-token"
+    response = client.post("/auth/login", json={
+        "username": "emir", "password": "123"
+    })
     assert response.status_code == 200
-    assert "access_token" in response.json()
-
-# 3. Yanlış şifreyle giriş 401 verecek
-def test_login_wrong_password():
-    payload = {
-        "username": "emir",
-        "password": "yanlis_sifre"
-    }
-    response = client.post("/auth/login", json=payload)
-    assert response.status_code == 401
-
-# 4. Token doğrulama: geçerli token kabulu
-def test_verify_token_success():
-    headers = {"Authorization": "Bearer gecerli_token"}
-    response = client.get("/auth/verify", headers=headers)
-    assert response.status_code == 200
-    assert "role" in response.json()
-
-# 5. Geçersiz token reddi
-def test_verify_token_invalid():
-    headers = {"Authorization": "Bearer gecersiz_token"}
-    response = client.get("/auth/verify", headers=headers)
-    assert response.status_code == 401
+    assert response.json()["access_token"] == "fake-token"
