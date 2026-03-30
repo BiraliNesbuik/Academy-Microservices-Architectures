@@ -51,51 +51,76 @@ def _is_error_body(response_text: str) -> bool:
     except (json.JSONDecodeError, AttributeError):
         return False
 
-@app.get("/exam/{path:path}")
-async def route_to_exam_service(path: str, request: Request, authorization: str = Header(None)):
-    logger.info(f"exam servisine istek: /{path}")
+def _forward_response(ms_response):
+    if ms_response.status_code == 200 and _is_error_body(ms_response.text):
+        return JSONResponse(status_code=500, content={"error": "Internal Error"})
+    return JSONResponse(status_code=ms_response.status_code, content=ms_response.json())
 
+# ── EXAM SERVİSİ ──────────────────────────────────────────────
+
+@app.get("/exam/{path:path}")
+async def exam_get(path: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"exam servisine GET isteği: /{path}")
     payload = verify_and_decode_token(authorization)
     if not payload:
-        return JSONResponse(status_code=401, content={"error": "Unauthorized or Invalid Token"})
-
-    user_role = payload.get("role")
-    db = request.app.state.db
-    has_permission = await check_permission(db, user_role, "exam")
-    if not has_permission:
-        return JSONResponse(status_code=403, content={"error": "Forbidden: Rolünüzün yetkisi yok"})
-
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "exam"):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
-        target_url = f"{EXAM_SERVICE_URL}/{path}"
-        ms_response = requests.get(target_url, timeout=2)
-        if ms_response.status_code == 200 and _is_error_body(ms_response.text):
-            return JSONResponse(status_code=500, content={"error": "Internal Error"})
-        return JSONResponse(status_code=ms_response.status_code, content=ms_response.json())
+        ms_response = requests.get(f"{EXAM_SERVICE_URL}/{path}", timeout=2)
+        return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)
     except requests.exceptions.RequestException:
         return Response(status_code=503)
 
-@app.get("/course/{path:path}")
-async def route_to_course_service(path: str, request: Request, authorization: str = Header(None)):
-    logger.info(f"course servisine istek: /{path}")
-
+@app.post("/exam/{path:path}")
+async def exam_post(path: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"exam servisine POST isteği: /{path}")
     payload = verify_and_decode_token(authorization)
     if not payload:
-        return JSONResponse(status_code=401, content={"error": "Unauthorized or Invalid Token"})
-
-    user_role = payload.get("role")
-    db = request.app.state.db
-    has_permission = await check_permission(db, user_role, "course")
-    if not has_permission:
-        return JSONResponse(status_code=403, content={"error": "Forbidden: Rolünüzün yetkisi yok"})
-
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "exam"):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
-        target_url = f"{COURSE_SERVICE_URL}/{path}"
-        ms_response = requests.get(target_url, timeout=2)
-        if ms_response.status_code == 200 and _is_error_body(ms_response.text):
-            return JSONResponse(status_code=500, content={"error": "Internal Error"})
-        return JSONResponse(status_code=ms_response.status_code, content=ms_response.json())
+        body = await request.json()
+        ms_response = requests.post(f"{EXAM_SERVICE_URL}/{path}", json=body, timeout=2)
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
+# ── COURSE SERVİSİ ─────────────────────────────────────────────
+
+@app.get("/course/{path:path}")
+async def course_get(path: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"course servisine GET isteği: /{path}")
+    payload = verify_and_decode_token(authorization)
+    if not payload:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "course"):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
+    try:
+        ms_response = requests.get(f"{COURSE_SERVICE_URL}/{path}", timeout=2)
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
+@app.post("/course/{path:path}")
+async def course_post(path: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"course servisine POST isteği: /{path}")
+    payload = verify_and_decode_token(authorization)
+    if not payload:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "course"):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
+    try:
+        body = await request.json()
+        ms_response = requests.post(f"{COURSE_SERVICE_URL}/{path}", json=body, timeout=2)
+        return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)
     except requests.exceptions.RequestException:

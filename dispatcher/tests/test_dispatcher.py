@@ -168,5 +168,47 @@ def test_request_logging(mock_check, mock_jwt, mock_get, caplog):
     with caplog.at_level(logging.INFO, logger="dispatcher"):
         client.get("/exam/status", headers={"Authorization": "Bearer token"})
 
-    assert any("istek" in r.message.lower() or "request" in r.message.lower()
-               for r in caplog.records)
+    assert any("iste" in r.message.lower() or "request" in r.message.lower()
+           for r in caplog.records)
+    
+    # 13. Exam servisine POST isteği başarılı olmalı
+@patch('main.requests.post')
+@patch('main.jwt.decode')
+@patch('main.check_permission', new_callable=AsyncMock)
+def test_post_to_exam_service_success(mock_check, mock_jwt, mock_post):
+    mock_jwt.return_value = {"sub": "emir", "role": "student"}
+    mock_check.return_value = True
+
+    mock_response = Mock()
+    mock_response.status_code = 201
+    mock_response.json.return_value = {"message": "sınav oluşturuldu"}
+    mock_response.text = '{"message": "sinav olusturuldu"}'
+    mock_post.return_value = mock_response
+
+    headers = {"Authorization": "Bearer token"}
+    payload = {"title": "Deneme Sınavı", "duration": 60}
+    response = client.post("/exam/create", json=payload, headers=headers)
+
+    assert response.status_code == 201
+    assert response.json().get("message") is not None
+
+# 14. Course servisine POST isteği başarılı olmalı
+@patch('main.requests.post')
+@patch('main.jwt.decode')
+@patch('main.check_permission', new_callable=AsyncMock)
+def test_post_to_course_service_success(mock_check, mock_jwt, mock_post):
+    mock_jwt.return_value = {"sub": "emir", "role": "teacher"}
+    mock_check.return_value = True
+
+    mock_response = Mock()
+    mock_response.status_code = 201
+    mock_response.json.return_value = {"message": "ders oluşturuldu"}
+    mock_response.text = '{"message": "ders olusturuldu"}'
+    mock_post.return_value = mock_response
+
+    headers = {"Authorization": "Bearer token"}
+    payload = {"title": "İngilizce A1", "price": 199}
+    response = client.post("/course/create", json=payload, headers=headers)
+
+    assert response.status_code == 201
+    assert response.json().get("message") is not None
