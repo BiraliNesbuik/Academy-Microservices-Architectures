@@ -212,3 +212,33 @@ def test_post_to_course_service_success(mock_check, mock_jwt, mock_post):
 
     assert response.status_code == 201
     assert response.json().get("message") is not None
+
+    # 15. Auth servisine register yönlendirmesi başarılı olmalı
+@patch('main.requests.post')
+def test_route_to_auth_register(mock_post):
+    mock_response = Mock()
+    mock_response.status_code = 201
+    mock_response.json.return_value = {"message": "Kayıt başarılı"}
+    mock_response.text = '{"message": "Kayıt başarılı"}'
+    mock_post.return_value = mock_response
+
+    payload = {"username": "yeni_ogrenci", "password": "123", "role": "student"}
+    response = client.post("/auth/register", json=payload)
+
+    assert response.status_code == 201
+    assert response.json().get("message") == "Kayıt başarılı"
+
+# 16. Auth servisine login yönlendirmesi başarılı olmalı
+@patch('main.requests.post')
+def test_route_to_auth_login(mock_post):
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"access_token": "token123", "token_type": "bearer"}
+    mock_response.text = '{"access_token": "token123", "token_type": "bearer"}'
+    mock_post.return_value = mock_response
+
+    payload = {"username": "yeni_ogrenci", "password": "123"}
+    response = client.post("/auth/login", json=payload)
+
+    assert response.status_code == 200
+    assert "access_token" in response.json()
