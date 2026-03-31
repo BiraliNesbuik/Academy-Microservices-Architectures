@@ -18,6 +18,7 @@ DB_NAME = "dispatcher_db"
 
 EXAM_SERVICE_URL = "http://exam-service:8000"
 COURSE_SERVICE_URL = "http://course-service:8000"
+AUTH_SERVICE_URL = "http://auth-service:8001" 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -120,6 +121,21 @@ async def course_post(path: str, request: Request, authorization: str = Header(N
     try:
         body = await request.json()
         ms_response = requests.post(f"{COURSE_SERVICE_URL}/{path}", json=body, timeout=2)
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+    
+    # ── AUTH SERVİSİ YÖNLENDİRMESİ ───────────────────────────────────
+
+@app.post("/auth/{path:path}")
+async def auth_post(path: str, request: Request):
+    logger.info(f"Auth servisine POST isteği: /{path}")
+    # Not: Auth işlemlerinde henüz token olmadığı için token kontrolü (verify_and_decode) yapmıyoruz!
+    try:
+        body = await request.json()
+        ms_response = requests.post(f"{AUTH_SERVICE_URL}/auth/{path}", json=body, timeout=2)
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)
