@@ -69,3 +69,31 @@ def test_verify_token_invalid(mock_service):
 def test_verify_no_token(mock_service):
     response = client.get("/auth/verify")
     assert response.status_code == 401
+
+# 8. MongoDB Repository Kayıt Testi (TDD - Kırmızı Aşama)
+@pytest.mark.asyncio
+async def test_user_repository_saves_to_mongo():
+    """
+    Kullanıcı bilgilerinin MongoDB'ye kaydedilip kaydedilmediğini test eder.
+    (TDD: Kırmızı Aşama - Henüz repository içindeki MongoDB kodları yazılmadığı için BAŞARISIZ olmalıdır.)
+    """
+    try:
+        from app.repositories.user_repository import UserRepository
+    except ImportError:
+        UserRepository = None
+
+    # 1. Kontrol: Sınıf var mı?
+    assert UserRepository is not None, "UserRepository sınıfı henüz tanımlanmadı veya MongoDB metotları eksik! (TDD: Red)"
+
+    # Sahte veritabanı (Mock) koleksiyonu oluşturuyoruz
+    mock_db = MagicMock()
+    mock_collection = AsyncMock()
+    mock_collection.insert_one = AsyncMock()
+    mock_db.users = mock_collection
+
+    # 2. Kontrol: Repository'i başlat ve kullanıcı kaydetmeyi dene
+    repo = UserRepository(mock_db)
+    await repo.create_user({"username": "test_ogrenci", "password": "hashed_password"})
+
+    # 3. Kontrol: Veritabanının insert_one metodu çağrılmış mı?
+    mock_collection.insert_one.assert_called_once()
