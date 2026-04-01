@@ -1,5 +1,9 @@
 import json
 import logging
+import os
+from fastapi import Request
+from motor.motor_asyncio import AsyncIOMotorClient
+from datetime import datetime, timezone
 from fastapi import FastAPI, Header, Response, Request
 from fastapi.responses import JSONResponse
 import requests
@@ -29,6 +33,29 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Testin (TDD) kullanacağı log sayma fonksiyonu
+async def get_log_count():
+    # lifespan'de oluşturulan db bağlantısını kullanıyoruz
+    return await app.state.db.traffic_logs.count_documents({})
+
+# Tüm trafiği otomatik loglayan Middleware
+@app.middleware("http")
+async def log_traffic_to_mongo(request: Request, call_next):
+    # İsteği işleme al ve cevabı bekle
+    response = await call_next(request)
+    
+    # İsteği MongoDB'ye kaydet
+    log_entry = {
+        "method": request.method,
+        "path": request.url.path,
+        "status_code": response.status_code,
+        "timestamp": datetime.now(timezone.utc)
+    }
+    # lifespan'de oluşturulan db'ye kaydediyoruz
+    await app.state.db.traffic_logs.insert_one(log_entry)
+    
+    return response
+
 async def check_permission(db, role: str, service_prefix: str) -> bool:
     collection = db["permissions"]
     permission = await collection.find_one({"service": service_prefix})
@@ -55,7 +82,13 @@ def _is_error_body(response_text: str) -> bool:
 def _forward_response(ms_response):
     if ms_response.status_code == 200 and _is_error_body(ms_response.text):
         return JSONResponse(status_code=500, content={"error": "Internal Error"})
-    return JSONResponse(status_code=ms_response.status_code, content=ms_response.json())
+    
+    # JSON'a zorlamak yerine doğrudan FastAPI Response ile ham veriyi aktarıyoruz:
+    return Response(
+        content=ms_response.content,
+        status_code=ms_response.status_code,
+        media_type=ms_response.headers.get("content-type", "application/json")
+    )
 
 # ── EXAM SERVİSİ ──────────────────────────────────────────────
 
@@ -127,15 +160,15 @@ async def course_post(path: str, request: Request, authorization: str = Header(N
     except requests.exceptions.RequestException:
         return Response(status_code=503)
     
-    # ── AUTH SERVİSİ YÖNLENDİRMESİ ───────────────────────────────────
+# ── AUTH SERVİSİ YÖNLENDİRMESİ ───────────────────────────────────
 
 @app.post("/auth/{path:path}")
 async def auth_post(path: str, request: Request):
     logger.info(f"Auth servisine POST isteği: /{path}")
-    # Not: Auth işlemlerinde henüz token olmadığı için token kontrolü (verify_and_decode) yapmıyoruz!
     try:
         body = await request.json()
-        ms_response = requests.post(f"{AUTH_SERVICE_URL}/auth/{path}", json=body, timeout=2)
+        # Timeout süresini bcrypt darboğazını aşmak için 15 saniyeye çıkardık
+        ms_response = requests.post(f"{AUTH_SERVICE_URL}/auth/{path}", json=body, timeout=15)
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)

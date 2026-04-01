@@ -8,7 +8,17 @@ from jose import JWTError
 # Veri tabanını mock'lamak (taklit etmek) için fixture
 @pytest.fixture(autouse=True)
 def mock_db():
+    # Asenkron işlemler için AsyncMock kullanıyoruz
     mock_database = MagicMock()
+    mock_collection = AsyncMock()
+    
+    # insert_one asenkron olduğu için AsyncMock döndürmeli
+    mock_collection.insert_one = AsyncMock() 
+    
+    # count_documents asenkron olduğu için AsyncMock döndürmeli ve bir değer vermeli
+    mock_collection.count_documents = AsyncMock(return_value=0) 
+    
+    mock_database.traffic_logs = mock_collection
     app.state.db = mock_database
     yield mock_database
 
@@ -243,28 +253,21 @@ def test_route_to_auth_login(mock_post):
     assert response.status_code == 200
     assert "access_token" in response.json()
 
-    # 17. MongoDB Loglama Testi (TDD - Kırmızı Aşama)
+    # 17. MongoDB Loglama Testi (TDD - Green Aşama)
 @pytest.mark.asyncio
 async def test_dispatcher_logs_traffic_to_mongo():
-    """
-    Gelen bir isteğin Dispatcher tarafından MongoDB'ye loglanıp loglanmadığını test eder.
-    (TDD: Kırmızı Aşama - Henüz loglama fonksiyonu yazılmadığı için bu test BAŞARISIZ olmalıdır.)
-    """
-    # İleride yazacağımız get_log_count fonksiyonunu import etmeye çalışıyoruz
-    try:
-        from main import get_log_count
-    except ImportError:
-        get_log_count = None
-
-    # 1. Adım: Fonksiyonun varlığını kontrol et
-    assert get_log_count is not None, "Logları kontrol edecek veritabanı fonksiyonu (get_log_count) henüz yazılmadı! (TDD: Red)"
-
-    # 2. Adım: İstek öncesi log sayısını al
+    from main import get_log_count, app
+    
+    # 1. Adım: Mock üzerinden sayaç başlangıçta 0 dönsün
+    app.state.db.traffic_logs.count_documents.return_value = 0
     initial_count = await get_log_count()
     
-    # 3. Adım: Auth login'e bir istek at (mock kullanmadan, doğrudan api'ye)
+    # 2. Adım: İstek at
     client.post("/auth/login", json={"username": "test", "password": "123"})
 
-    # 4. Adım: İstek sonrası log sayısını kontrol et
-    final_count = await get_log_count()
-    assert final_count > initial_count, "Dispatcher trafik logunu MongoDB'ye kaydetmedi!"
+    # 3. Adım: Mock'un insert_one metodunun çağrılıp çağrılmadığını kontrol et
+    # Eğer middleware çalıştıysa, insert_one asenkron olarak çağrılmış olmalı
+    app.state.db.traffic_logs.insert_one.assert_called_once()
+    
+    # Not: Gerçek db kullanmadığımız için insert_one, log_count'u artırmaz. 
+    # Bu yüzden assert_called_once ile middleware'in görevini yaptığını kanıtlıyoruz.
