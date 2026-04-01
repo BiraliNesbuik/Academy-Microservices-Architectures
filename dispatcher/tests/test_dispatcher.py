@@ -242,3 +242,29 @@ def test_route_to_auth_login(mock_post):
 
     assert response.status_code == 200
     assert "access_token" in response.json()
+
+    # 17. MongoDB Loglama Testi (TDD - Kırmızı Aşama)
+@pytest.mark.asyncio
+async def test_dispatcher_logs_traffic_to_mongo():
+    """
+    Gelen bir isteğin Dispatcher tarafından MongoDB'ye loglanıp loglanmadığını test eder.
+    (TDD: Kırmızı Aşama - Henüz loglama fonksiyonu yazılmadığı için bu test BAŞARISIZ olmalıdır.)
+    """
+    # İleride yazacağımız get_log_count fonksiyonunu import etmeye çalışıyoruz
+    try:
+        from main import get_log_count
+    except ImportError:
+        get_log_count = None
+
+    # 1. Adım: Fonksiyonun varlığını kontrol et
+    assert get_log_count is not None, "Logları kontrol edecek veritabanı fonksiyonu (get_log_count) henüz yazılmadı! (TDD: Red)"
+
+    # 2. Adım: İstek öncesi log sayısını al
+    initial_count = await get_log_count()
+    
+    # 3. Adım: Auth login'e bir istek at (mock kullanmadan, doğrudan api'ye)
+    client.post("/auth/login", json={"username": "test", "password": "123"})
+
+    # 4. Adım: İstek sonrası log sayısını kontrol et
+    final_count = await get_log_count()
+    assert final_count > initial_count, "Dispatcher trafik logunu MongoDB'ye kaydetmedi!"
