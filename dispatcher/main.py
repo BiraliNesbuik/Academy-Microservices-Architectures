@@ -180,6 +180,40 @@ async def course_purchase(course_id: str, request: Request, authorization: str =
     except requests.exceptions.RequestException:
         return Response(status_code=503)
 
+@app.put("/course/{path:path}")
+async def course_put(path: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"course servisine PUT isteği: /{path}")
+    payload = verify_and_decode_token(authorization)
+    if not payload:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "course"):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
+    try:
+        body = await request.json()
+        ms_response = requests.put(f"{COURSE_SERVICE_URL}/{path}", json=body, timeout=2)
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
+
+@app.delete("/course/{path:path}")
+async def course_delete(path: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"course servisine DELETE isteği: /{path}")
+    payload = verify_and_decode_token(authorization)
+    if not payload:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "course"):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
+    try:
+        ms_response = requests.delete(f"{COURSE_SERVICE_URL}/{path}", timeout=2)
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
 # ── AUTH SERVİSİ YÖNLENDİRMESİ ───────────────────────────────────
 
 @app.post("/auth/{path:path}")
