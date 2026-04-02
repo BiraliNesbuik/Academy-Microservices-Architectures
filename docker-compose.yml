@@ -2,24 +2,23 @@ version: "3.9"
 
 services:
 
-  # ── DISPATCHER ──────────────────────────────────────────
   dispatcher:
     build: ./dispatcher
     ports:
-      - "8000:8000"        # Dışarıya sadece bu açık!
+      - "8000:8000"
     environment:
       - MONGO_URL=mongodb://dispatcher-mongo:27017
     depends_on:
       - dispatcher-mongo
       - auth-service
+      - course-service        # ← bunu da ekle
     networks:
       - internal
 
-  # ── AUTH SERVİSİ ────────────────────────────────────────
   auth-service:
     build: ./auth_service
     expose:
-      - "8001"             # Sadece iç ağa açık, dışarıya kapalı!
+      - "8001"
     environment:
       - MONGO_URL=mongodb://auth-mongo:27017
     depends_on:
@@ -27,7 +26,15 @@ services:
     networks:
       - internal
 
-  # ── DISPATCHER'IN VERİTABANI ────────────────────────────
+  course-service:
+    build: ./course_service
+    expose:
+      - "8000"
+    depends_on:
+      - course-mongo
+    networks:
+      - internal
+
   dispatcher-mongo:
     image: mongo:7
     volumes:
@@ -35,11 +42,17 @@ services:
     networks:
       - internal
 
-  # ── AUTH SERVİSİNİN VERİTABANI ─────────────────────────
   auth-mongo:
     image: mongo:7
     volumes:
       - auth-mongo-data:/data/db
+    networks:
+      - internal
+
+  course-mongo:
+    image: mongo:7
+    volumes:
+      - course-mongo-data:/data/db
     networks:
       - internal
 
@@ -50,3 +63,4 @@ networks:
 volumes:
   dispatcher-mongo-data:
   auth-mongo-data:
+  course-mongo-data:          # ← yeni
