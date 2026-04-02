@@ -7,10 +7,24 @@ from app.repositories.course_repository import CourseRepository
 MONGO_URL = "mongodb://course-mongo:27017"
 DB_NAME = "course_db"
 
+SAMPLE_COURSES = [
+    {"title": "İngilizce A1 - Başlangıç", "level": "A1", "price": 299.0, "is_active": True},
+    {"title": "İngilizce B2 - Orta Üstü", "level": "B2", "price": 599.0, "is_active": True},
+    {"title": "Almanca A1 - Başlangıç",   "level": "A1", "price": 349.0, "is_active": True},
+    {"title": "İspanyolca A2",             "level": "A2", "price": 399.0, "is_active": True},
+    {"title": "Fransızca C1 - İleri",      "level": "C1", "price": 799.0, "is_active": False},
+]
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.mongo_client = AsyncIOMotorClient(MONGO_URL)
     app.state.db = app.state.mongo_client[DB_NAME]
+
+    # Veritabanı boşsa örnek kursları ekle
+    count = await app.state.db["courses"].count_documents({})
+    if count == 0:
+        await app.state.db["courses"].insert_many(SAMPLE_COURSES)
+
     yield
     app.state.mongo_client.close()
 
