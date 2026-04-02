@@ -19,12 +19,9 @@ SAMPLE_COURSES = [
 async def lifespan(app: FastAPI):
     app.state.mongo_client = AsyncIOMotorClient(MONGO_URL)
     app.state.db = app.state.mongo_client[DB_NAME]
-
-    # Veritabanı boşsa örnek kursları ekle
     count = await app.state.db["courses"].count_documents({})
     if count == 0:
         await app.state.db["courses"].insert_many(SAMPLE_COURSES)
-
     yield
     app.state.mongo_client.close()
 
@@ -38,9 +35,16 @@ async def create_course(course: Course, repo: CourseRepository = Depends(get_cou
     course_id = await repo.create_course(course)
     return {"id": course_id, "message": "Kurs oluşturuldu"}
 
-@app.get("/courses")
+@app.get("/courses")                           # ← önce bu
 async def list_courses(repo: CourseRepository = Depends(get_course_repository)):
     return await repo.get_all_courses()
+
+@app.get("/courses/{course_id}")               # ← sonra bu
+async def get_course(course_id: str, repo: CourseRepository = Depends(get_course_repository)):
+    course = await repo.get_course_by_id(course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı")
+    return course
 
 @app.post("/courses/{course_id}/purchase", status_code=201)
 async def purchase_course(course_id: str, purchase: Purchase, repo: CourseRepository = Depends(get_course_repository)):

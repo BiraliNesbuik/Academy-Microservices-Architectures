@@ -110,3 +110,23 @@ def test_purchase_inactive_course(mock_repo):
         "course_id": "fake_course_id_123"
     })
     assert response.status_code == 400
+
+    # 9. Tek kurs getirme başarılı olmalı
+def test_get_course_by_id_success(mock_repo):
+    mock_repo.get_course_by_id.return_value = {
+        "id": "fake_course_id_123",
+        "title": "İngilizce B2",
+        "level": "B2",
+        "price": 299.0,
+        "is_active": True
+    }
+    response = client.get("/courses/fake_course_id_123")
+    assert response.status_code == 200
+    assert response.json()["title"] == "İngilizce B2"
+
+
+# 10. Olmayan kurs 404 dönmeli
+def test_get_course_by_id_not_found(mock_repo):
+    mock_repo.get_course_by_id.return_value = None
+    response = client.get("/courses/olmayan_id")
+    assert response.status_code == 404
