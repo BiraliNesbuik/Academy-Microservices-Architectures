@@ -130,3 +130,21 @@ def test_get_course_by_id_not_found(mock_repo):
     mock_repo.get_course_by_id.return_value = None
     response = client.get("/courses/olmayan_id")
     assert response.status_code == 404
+
+    # 11. Kullanıcının satın aldığı kurslar listelenmeli
+def test_get_my_purchases_success(mock_repo):
+    mock_repo.get_purchases_by_username = AsyncMock(return_value=[
+        {"id": "purchase_1", "username": "emir", "course_id": "fake_course_id_123"}
+    ])
+    response = client.get("/courses/my-purchases?username=emir")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["username"] == "emir"
+
+
+# 12. Satın alması olmayan kullanıcı boş liste almalı
+def test_get_my_purchases_empty(mock_repo):
+    mock_repo.get_purchases_by_username = AsyncMock(return_value=[])
+    response = client.get("/courses/my-purchases?username=nobody")
+    assert response.status_code == 200
+    assert response.json() == []

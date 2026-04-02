@@ -28,3 +28,12 @@ class CourseRepository:
     async def purchase_course(self, purchase: Purchase):
         result = await self.purchases.insert_one(purchase.model_dump())
         return str(result.inserted_id)
+
+    async def get_purchases_by_username(self, username: str):
+        cursor = self.purchases.find({"username": username})
+        purchases = []
+        async for document in cursor:
+            document["id"] = str(document["_id"])
+            del document["_id"]
+            purchases.append(document)
+        return purchases

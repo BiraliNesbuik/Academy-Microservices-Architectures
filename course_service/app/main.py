@@ -39,6 +39,10 @@ async def create_course(course: Course, repo: CourseRepository = Depends(get_cou
 async def list_courses(repo: CourseRepository = Depends(get_course_repository)):
     return await repo.get_all_courses()
 
+@app.get("/courses/my-purchases")
+async def get_my_purchases(username: str, repo: CourseRepository = Depends(get_course_repository)):
+    return await repo.get_purchases_by_username(username)
+
 @app.get("/courses/{course_id}")               # ← sonra bu
 async def get_course(course_id: str, repo: CourseRepository = Depends(get_course_repository)):
     course = await repo.get_course_by_id(course_id)
