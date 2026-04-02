@@ -70,20 +70,15 @@ def test_verify_no_token(mock_service):
     response = client.get("/auth/verify")
     assert response.status_code == 401
 
-# 8. MongoDB Repository Kayıt Testi (TDD - Kırmızı Aşama)
+# 8. MongoDB Repository Kayıt Testi (TDD - Green Aşama)
 @pytest.mark.asyncio
 async def test_user_repository_saves_to_mongo():
     """
     Kullanıcı bilgilerinin MongoDB'ye kaydedilip kaydedilmediğini test eder.
-    (TDD: Kırmızı Aşama - Henüz repository içindeki MongoDB kodları yazılmadığı için BAŞARISIZ olmalıdır.)
+    (TDD: Yeşil Aşama - Doğru Pydantic modeli kullanılarak testin geçmesi hedeflenir.)
     """
-    try:
-        from app.repositories.user_repository import UserRepository
-    except ImportError:
-        UserRepository = None
-
-    # 1. Kontrol: Sınıf var mı?
-    assert UserRepository is not None, "UserRepository sınıfı henüz tanımlanmadı veya MongoDB metotları eksik! (TDD: Red)"
+    from app.repositories.user_repository import UserRepository
+    from app.models.user import User
 
     # Sahte veritabanı (Mock) koleksiyonu oluşturuyoruz
     mock_db = MagicMock()
@@ -91,9 +86,12 @@ async def test_user_repository_saves_to_mongo():
     mock_collection.insert_one = AsyncMock()
     mock_db.users = mock_collection
 
-    # 2. Kontrol: Repository'i başlat ve kullanıcı kaydetmeyi dene
-    repo = UserRepository(mock_db)
-    await repo.create_user({"username": "test_ogrenci", "password": "hashed_password"})
+    # Doğru Pydantic modelinden örnek oluşturuyoruz
+    test_user = User(username="test_ogrenci", hashed_password="hashed_password", role="student")
 
-    # 3. Kontrol: Veritabanının insert_one metodu çağrılmış mı?
-    mock_collection.insert_one.assert_called_once()
+    # Repository'i başlat ve kullanıcı kaydetmeyi dene
+    repo = UserRepository(mock_db)
+    await repo.create_user(test_user)
+
+    # Kontrol: Veritabanının insert_one metodu, modelin verileriyle (model_dump) çağrılmış mı?
+    mock_collection.insert_one.assert_called_once_with(test_user.model_dump())

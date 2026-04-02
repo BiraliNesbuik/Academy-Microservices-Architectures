@@ -5,7 +5,7 @@ from app.models.user import UserRegister, UserLogin, TokenResponse
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
 
-MONGO_URL = "mongodb://mongo:27017"
+MONGO_URL = "mongodb://auth-mongo:27017"
 DB_NAME = "auth_db"
 
 @asynccontextmanager

@@ -1,15 +1,23 @@
 from locust import HttpUser, task, between
 
 class DilAkademisiUser(HttpUser):
-    wait_time = between(1, 3) # Kullanıcıların her istek arası 1 ile 3 saniye beklemesini sağlar
+    wait_time = between(1, 3)
 
-    @task(1)
-    def login_test(self):
-        # Dispatcher üzerinden Auth servisine login isteği atıyoruz
-        payload = {"username": "test_ogrenci", "password": "123"}
-        self.client.post("/auth/login", json=payload)
+    def on_start(self):
+        # Test başlarken bir kez kullanıcıyı kayıt etmeyi deneriz.
+        # Böylece login işleminde veritabanında kullanıcı hazır olur.
+        self.client.post("/auth/register", json={"username": "test_ogrenci", "password": "123", "role": "student"})
 
     @task(2)
+    def login_test(self):
+        # Artık kullanıcı var olduğu için 200 OK dönecek ve yeşil olacak
+        self.client.post("/auth/login", json={"username": "test_ogrenci", "password": "123"})
+
+    @task(1)
     def invalid_route_test(self):
-        # Dispatcher'ın olmayan sayfalara 404 dönme hızını ölçüyoruz
-        self.client.get("/olmayan-bir-sayfa")
+        # 404 beklediğimizi Locust'a açıkça söylüyoruz ki bunu hata değil 'başarı' saysın
+        with self.client.get("/olmayan-bir-sayfa", catch_response=True) as response:
+            if response.status_code == 404:
+                response.success()
+            else:
+                response.failure(f"Beklenmeyen kod: {response.status_code}")
