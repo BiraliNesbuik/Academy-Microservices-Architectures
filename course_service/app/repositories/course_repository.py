@@ -37,3 +37,10 @@ class CourseRepository:
             del document["_id"]
             purchases.append(document)
         return purchases
+
+    async def update_course(self, course_id: str, data: dict):
+        result = await self.collection.update_one(
+            {"_id": ObjectId(course_id)},
+            {"$set": data}
+        )
+        return result.modified_count > 0

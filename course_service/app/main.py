@@ -50,6 +50,13 @@ async def get_course(course_id: str, repo: CourseRepository = Depends(get_course
         raise HTTPException(status_code=404, detail="Kurs bulunamadı")
     return course
 
+@app.put("/courses/{course_id}")
+async def update_course(course_id: str, course: Course, repo: CourseRepository = Depends(get_course_repository)):
+    updated = await repo.update_course(course_id, course.model_dump())
+    if not updated:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı veya değişiklik yapılmadı")
+    return {"message": "Kurs güncellendi"}
+
 @app.post("/courses/{course_id}/purchase", status_code=201)
 async def purchase_course(course_id: str, purchase: Purchase, repo: CourseRepository = Depends(get_course_repository)):
     course = await repo.get_course_by_id(course_id)

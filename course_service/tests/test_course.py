@@ -148,3 +148,27 @@ def test_get_my_purchases_empty(mock_repo):
     response = client.get("/courses/my-purchases?username=nobody")
     assert response.status_code == 200
     assert response.json() == []
+
+    # 13. Kurs güncelleme başarılı olmalı
+def test_update_course_success(mock_repo):
+    mock_repo.update_course = AsyncMock(return_value=True)
+    response = client.put("/courses/fake_course_id_123", json={
+        "title": "İngilizce B2 - Güncel",
+        "level": "B2",
+        "price": 699.0,
+        "is_active": True
+    })
+    assert response.status_code == 200
+    assert response.json()["message"] == "Kurs güncellendi"
+
+
+# 14. Olmayan kursu güncelleme 404 dönmeli
+def test_update_course_not_found(mock_repo):
+    mock_repo.update_course = AsyncMock(return_value=False)
+    response = client.put("/courses/olmayan_id", json={
+        "title": "İngilizce B2",
+        "level": "B2",
+        "price": 699.0,
+        "is_active": True
+    })
+    assert response.status_code == 404
