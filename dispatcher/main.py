@@ -22,7 +22,7 @@ DB_NAME = "dispatcher_db"
 
 EXAM_SERVICE_URL = "http://exam-service:8000"
 COURSE_SERVICE_URL = "http://course-service:8000"
-AUTH_SERVICE_URL = "http://auth-service:8001" 
+AUTH_SERVICE_URL = "http://auth-service:8001"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,27 +33,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Testin (TDD) kullanacağı log sayma fonksiyonu
 async def get_log_count():
-    # lifespan'de oluşturulan db bağlantısını kullanıyoruz
     return await app.state.db.traffic_logs.count_documents({})
 
-# Tüm trafiği otomatik loglayan Middleware
 @app.middleware("http")
 async def log_traffic_to_mongo(request: Request, call_next):
-    # İsteği işleme al ve cevabı bekle
     response = await call_next(request)
-    
-    # İsteği MongoDB'ye kaydet
     log_entry = {
         "method": request.method,
         "path": request.url.path,
         "status_code": response.status_code,
         "timestamp": datetime.now(timezone.utc)
     }
-    # lifespan'de oluşturulan db'ye kaydediyoruz
     await app.state.db.traffic_logs.insert_one(log_entry)
-    
     return response
 
 async def check_permission(db, role: str, service_prefix: str) -> bool:
@@ -82,8 +74,6 @@ def _is_error_body(response_text: str) -> bool:
 def _forward_response(ms_response):
     if ms_response.status_code == 200 and _is_error_body(ms_response.text):
         return JSONResponse(status_code=500, content={"error": "Internal Error"})
-    
-    # JSON'a zorlamak yerine doğrudan FastAPI Response ile ham veriyi aktarıyoruz:
     return Response(
         content=ms_response.content,
         status_code=ms_response.status_code,
@@ -159,7 +149,28 @@ async def course_post(path: str, request: Request, authorization: str = Header(N
         return Response(status_code=504)
     except requests.exceptions.RequestException:
         return Response(status_code=503)
-    
+
+@app.post("/course/courses/{course_id}/purchase")
+async def course_purchase(course_id: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"course servisine satın alma isteği: {course_id}")
+    payload = verify_and_decode_token(authorization)
+    if not payload:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "course"):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
+    try:
+        body = await request.json()
+        ms_response = requests.post(
+            f"{COURSE_SERVICE_URL}/courses/{course_id}/purchase",
+            json=body,
+            timeout=2
+        )
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
 # ── AUTH SERVİSİ YÖNLENDİRMESİ ───────────────────────────────────
 
 @app.post("/auth/{path:path}")
@@ -167,7 +178,6 @@ async def auth_post(path: str, request: Request):
     logger.info(f"Auth servisine POST isteği: /{path}")
     try:
         body = await request.json()
-        # Timeout süresini bcrypt darboğazını aşmak için 15 saniyeye çıkardık
         ms_response = requests.post(f"{AUTH_SERVICE_URL}/auth/{path}", json=body, timeout=15)
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
