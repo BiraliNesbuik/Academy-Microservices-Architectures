@@ -172,3 +172,17 @@ def test_update_course_not_found(mock_repo):
         "is_active": True
     })
     assert response.status_code == 404
+
+    # 15. Kurs silme başarılı olmalı
+def test_delete_course_success(mock_repo):
+    mock_repo.delete_course = AsyncMock(return_value=True)
+    response = client.delete("/courses/fake_course_id_123")
+    assert response.status_code == 200
+    assert response.json()["message"] == "Kurs silindi"
+
+
+# 16. Olmayan kursu silme 404 dönmeli
+def test_delete_course_not_found(mock_repo):
+    mock_repo.delete_course = AsyncMock(return_value=False)
+    response = client.delete("/courses/olmayan_id")
+    assert response.status_code == 404

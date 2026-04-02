@@ -44,3 +44,7 @@ class CourseRepository:
             {"$set": data}
         )
         return result.modified_count > 0
+    
+    async def delete_course(self, course_id: str):
+        result = await self.collection.delete_one({"_id": ObjectId(course_id)})
+        return result.deleted_count > 0

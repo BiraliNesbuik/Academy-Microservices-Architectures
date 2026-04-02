@@ -57,6 +57,13 @@ async def update_course(course_id: str, course: Course, repo: CourseRepository =
         raise HTTPException(status_code=404, detail="Kurs bulunamadı veya değişiklik yapılmadı")
     return {"message": "Kurs güncellendi"}
 
+@app.delete("/courses/{course_id}")
+async def delete_course(course_id: str, repo: CourseRepository = Depends(get_course_repository)):
+    deleted = await repo.delete_course(course_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı")
+    return {"message": "Kurs silindi"}
+
 @app.post("/courses/{course_id}/purchase", status_code=201)
 async def purchase_course(course_id: str, purchase: Purchase, repo: CourseRepository = Depends(get_course_repository)):
     course = await repo.get_course_by_id(course_id)
