@@ -2,20 +2,55 @@ from locust import HttpUser, task, between
 
 class DilAkademisiUser(HttpUser):
     wait_time = between(1, 3)
+    token = None
 
     def on_start(self):
-        # Test başlarken bir kez kullanıcıyı kayıt etmeyi deneriz.
-        # Böylece login işleminde veritabanında kullanıcı hazır olur.
-        self.client.post("/auth/register", json={"username": "test_ogrenci", "password": "123", "role": "student"})
+        # Kullaniciyi kayit et
+        self.client.post("/auth/register", json={
+            "username": "test_ogrenci",
+            "password": "123",
+            "role": "student"
+        })
+
+        # Giris yap ve token al
+        response = self.client.post("/auth/login", json={
+            "username": "test_ogrenci",
+            "password": "123"
+        })
+        if response.status_code == 200:
+            self.token = response.json().get("access_token")
+
+    def auth_headers(self):
+        return {"Authorization": f"Bearer {self.token}"}
 
     @task(2)
     def login_test(self):
-        # Artık kullanıcı var olduğu için 200 OK dönecek ve yeşil olacak
-        self.client.post("/auth/login", json={"username": "test_ogrenci", "password": "123"})
+        self.client.post("/auth/login", json={
+            "username": "test_ogrenci",
+            "password": "123"
+        })
+
+    @task(3)
+    def list_courses(self):
+        self.client.get("/course/courses", headers=self.auth_headers())
+
+    @task(2)
+    def get_single_course(self):
+        response = self.client.get("/course/courses", headers=self.auth_headers())
+        if response.status_code == 200 and response.json():
+            course_id = response.json()[0].get("id")
+            if course_id:
+                self.client.get(f"/course/courses/{course_id}", headers=self.auth_headers())
+
+    @task(1)
+    def my_purchases(self):
+        self.client.get(
+            "/course/courses/my-purchases?username=test_ogrenci",
+            headers=self.auth_headers()
+        )
 
     @task(1)
     def invalid_route_test(self):
-        # 404 beklediğimizi Locust'a açıkça söylüyoruz ki bunu hata değil 'başarı' saysın
         with self.client.get("/olmayan-bir-sayfa", catch_response=True) as response:
             if response.status_code == 404:
                 response.success()
