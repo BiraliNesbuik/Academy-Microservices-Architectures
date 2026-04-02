@@ -28,6 +28,15 @@ AUTH_SERVICE_URL = "http://auth-service:8001"
 async def lifespan(app: FastAPI):
     app.state.mongo_client = AsyncIOMotorClient(MONGO_URL)
     app.state.db = app.state.mongo_client[DB_NAME]
+
+    # Yetki kuralları yoksa ekle
+    count = await app.state.db["permissions"].count_documents({})
+    if count == 0:
+        await app.state.db["permissions"].insert_many([
+            {"service": "exam",   "allowed_roles": ["teacher", "admin"]},
+            {"service": "course", "allowed_roles": ["teacher", "student", "admin"]},
+        ])
+
     yield
     app.state.mongo_client.close()
 
