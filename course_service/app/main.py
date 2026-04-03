@@ -8,11 +8,11 @@ MONGO_URL = "mongodb://course-mongo:27017"
 DB_NAME = "course_db"
 
 SAMPLE_COURSES = [
-    {"title": "İngilizce A1 - Başlangıç", "level": "A1", "price": 299.0, "is_active": True},
-    {"title": "İngilizce B2 - Orta Üstü", "level": "B2", "price": 599.0, "is_active": True},
-    {"title": "Almanca A1 - Başlangıç",   "level": "A1", "price": 349.0, "is_active": True},
-    {"title": "İspanyolca A2",             "level": "A2", "price": 399.0, "is_active": True},
-    {"title": "Fransızca C1 - İleri",      "level": "C1", "price": 799.0, "is_active": False},
+    {"title": "English A1 - Beginner", "level": "A1", "price": 299.0, "is_active": True},
+    {"title": "English B2 - Upper Intermediate", "level": "B2", "price": 599.0, "is_active": True},
+    {"title": "German A1 - Beginner", "level": "A1", "price": 349.0, "is_active": True},
+    {"title": "Spanish A2", "level": "A2", "price": 399.0, "is_active": True},
+    {"title": "French C1 - Advanced", "level": "C1", "price": 799.0, "is_active": False},
 ]
 
 @asynccontextmanager
