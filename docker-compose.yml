@@ -1,4 +1,4 @@
-version: "3.9"
+
 
 services:
 
@@ -11,7 +11,8 @@ services:
     depends_on:
       - dispatcher-mongo
       - auth-service
-      - course-service        # ← bunu da ekle
+      - course-service
+      - exam-service
     networks:
       - internal
 
@@ -32,6 +33,15 @@ services:
       - "8000"
     depends_on:
       - course-mongo
+    networks:
+      - internal
+
+  exam-service:
+    build: ./exam_service
+    expose:
+      - "8000"
+    depends_on:
+      - exam-mongo
     networks:
       - internal
 
@@ -56,6 +66,13 @@ services:
     networks:
       - internal
 
+  exam-mongo:
+    image: mongo:7
+    volumes:
+      - exam-mongo-data:/data/db
+    networks:
+      - internal
+
 networks:
   internal:
     driver: bridge
@@ -63,4 +80,5 @@ networks:
 volumes:
   dispatcher-mongo-data:
   auth-mongo-data:
-  course-mongo-data:          # ← yeni
+  course-mongo-data:
+  exam-mongo-data:
