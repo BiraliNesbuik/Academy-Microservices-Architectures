@@ -29,11 +29,10 @@ async def lifespan(app: FastAPI):
     app.state.mongo_client = AsyncIOMotorClient(MONGO_URL)
     app.state.db = app.state.mongo_client[DB_NAME]
 
-    # Yetki kuralları yoksa ekle
     count = await app.state.db["permissions"].count_documents({})
     if count == 0:
         await app.state.db["permissions"].insert_many([
-            {"service": "exam",   "allowed_roles": ["teacher", "admin"]},
+            {"service": "exam",   "allowed_roles": ["teacher", "student", "admin"]},
             {"service": "course", "allowed_roles": ["teacher", "student", "admin"]},
         ])
 
@@ -124,6 +123,39 @@ async def exam_post(path: str, request: Request, authorization: str = Header(Non
     except requests.exceptions.RequestException:
         return Response(status_code=503)
 
+@app.put("/exam/{path:path}")
+async def exam_put(path: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"exam servisine PUT isteği: /{path}")
+    payload = verify_and_decode_token(authorization)
+    if not payload:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "exam"):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
+    try:
+        body = await request.json()
+        ms_response = requests.put(f"{EXAM_SERVICE_URL}/{path}", json=body, timeout=2)
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
+@app.delete("/exam/{path:path}")
+async def exam_delete(path: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"exam servisine DELETE isteği: /{path}")
+    payload = verify_and_decode_token(authorization)
+    if not payload:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "exam"):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
+    try:
+        ms_response = requests.delete(f"{EXAM_SERVICE_URL}/{path}", timeout=2)
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
 # ── COURSE SERVİSİ ─────────────────────────────────────────────
 
 @app.get("/course/{path:path}")
@@ -196,7 +228,6 @@ async def course_put(path: str, request: Request, authorization: str = Header(No
         return Response(status_code=504)
     except requests.exceptions.RequestException:
         return Response(status_code=503)
-
 
 @app.delete("/course/{path:path}")
 async def course_delete(path: str, request: Request, authorization: str = Header(None)):
