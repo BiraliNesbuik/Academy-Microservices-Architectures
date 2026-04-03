@@ -5,11 +5,14 @@ class DilAkademisiUser(HttpUser):
     token = None
 
     def on_start(self):
-        self.client.post("/auth/register", json={
+        with self.client.post("/auth/register", json={
             "username": "test_ogrenci",
             "password": "123",
             "role": "student"
-        })
+        }, catch_response=True) as response:
+            if response.status_code in [201, 409]:
+                response.success()
+
         response = self.client.post("/auth/login", json={
             "username": "test_ogrenci",
             "password": "123"
