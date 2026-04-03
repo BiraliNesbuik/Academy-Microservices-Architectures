@@ -5,14 +5,11 @@ class DilAkademisiUser(HttpUser):
     token = None
 
     def on_start(self):
-        # Kullaniciyi kayit et
         self.client.post("/auth/register", json={
             "username": "test_ogrenci",
             "password": "123",
             "role": "student"
         })
-
-        # Giris yap ve token al
         response = self.client.post("/auth/login", json={
             "username": "test_ogrenci",
             "password": "123"
@@ -32,22 +29,31 @@ class DilAkademisiUser(HttpUser):
 
     @task(3)
     def list_courses(self):
-        self.client.get("/course/courses", headers=self.auth_headers())
+        if self.token:
+            self.client.get("/course/courses", headers=self.auth_headers())
+
+    @task(2)
+    def list_exams(self):
+        if self.token:
+            self.client.get("/exam/exams", headers=self.auth_headers())
 
     @task(2)
     def get_single_course(self):
-        response = self.client.get("/course/courses", headers=self.auth_headers())
-        if response.status_code == 200 and response.json():
-            course_id = response.json()[0].get("id")
-            if course_id:
-                self.client.get(f"/course/courses/{course_id}", headers=self.auth_headers())
+        if self.token:
+            response = self.client.get("/course/courses", headers=self.auth_headers())
+            if response.status_code == 200 and response.json():
+                course_id = response.json()[0].get("id")
+                if course_id:
+                    self.client.get(f"/course/courses/{course_id}", headers=self.auth_headers())
 
     @task(1)
     def my_purchases(self):
-        self.client.get(
-            "/course/courses/my-purchases?username=test_ogrenci",
-            headers=self.auth_headers()
-        )
+        if self.token:
+            self.client.get(
+                "/course/courses/my-purchases",
+                params={"username": "test_ogrenci"},
+                headers=self.auth_headers()
+            )
 
     @task(1)
     def invalid_route_test(self):
