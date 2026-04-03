@@ -99,7 +99,11 @@ async def exam_get(path: str, request: Request, authorization: str = Header(None
     if not await check_permission(request.app.state.db, payload.get("role"), "exam"):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
-        ms_response = requests.get(f"{EXAM_SERVICE_URL}/{path}", timeout=2)
+        ms_response = requests.get(
+            f"{EXAM_SERVICE_URL}/{path}",
+            params=dict(request.query_params),
+            timeout=2
+        )
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)
@@ -167,7 +171,11 @@ async def course_get(path: str, request: Request, authorization: str = Header(No
     if not await check_permission(request.app.state.db, payload.get("role"), "course"):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
-        ms_response = requests.get(f"{COURSE_SERVICE_URL}/{path}", timeout=2)
+        ms_response = requests.get(
+            f"{COURSE_SERVICE_URL}/{path}",
+            params=dict(request.query_params),
+            timeout=2
+        )
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)
