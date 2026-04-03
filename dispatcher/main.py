@@ -44,6 +44,10 @@ async def lifespan(app: FastAPI):
             {"service": "course", "method": "POST",   "path": "purchase", "allowed_roles": ["student"]},
             {"service": "course", "method": "PUT",    "allowed_roles": ["teacher", "admin"]},
             {"service": "course", "method": "DELETE", "allowed_roles": ["teacher", "admin"]},
+
+            {"service": "course", "method": "POST", "path": "cart", "allowed_roles": ["student"]},
+            {"service": "course", "method": "GET",  "path": "cart", "allowed_roles": ["student"]},
+            {"service": "course", "method": "DELETE", "path": "cart", "allowed_roles": ["student"]},
         ])
 
     yield
@@ -192,7 +196,7 @@ async def course_get(path: str, request: Request, authorization: str = Header(No
         ms_response = requests.get(
             f"{COURSE_SERVICE_URL}/{path}",
             params=dict(request.query_params),
-            timeout=2
+            timeout=10
         )
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
