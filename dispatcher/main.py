@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 SECRET_KEY = "gizli_anahtar_123"
 ALGORITHM = "HS256"
 
-MONGO_URL = "mongodb://mongo:27017"
+MONGO_URL = "mongodb://dispatcher-mongo:27017"
 DB_NAME = "dispatcher_db"
 
 EXAM_SERVICE_URL = "http://exam-service:8000"
