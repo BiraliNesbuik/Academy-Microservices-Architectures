@@ -42,12 +42,10 @@ async def lifespan(app: FastAPI):
             {"service": "course", "method": "GET",    "allowed_roles": ["teacher", "student", "admin"]},
             {"service": "course", "method": "POST",   "path": "courses$", "allowed_roles": ["teacher", "admin"]},
             {"service": "course", "method": "POST",   "path": "purchase", "allowed_roles": ["student"]},
+            {"service": "course", "method": "POST",   "path": "cart",     "allowed_roles": ["student"]},
+            {"service": "course", "method": "DELETE", "path": "cart",     "allowed_roles": ["student"]},
             {"service": "course", "method": "PUT",    "allowed_roles": ["teacher", "admin"]},
             {"service": "course", "method": "DELETE", "allowed_roles": ["teacher", "admin"]},
-
-            {"service": "course", "method": "POST", "path": "cart", "allowed_roles": ["student"]},
-            {"service": "course", "method": "GET",  "path": "cart", "allowed_roles": ["student"]},
-            {"service": "course", "method": "DELETE", "path": "cart", "allowed_roles": ["student"]},
         ])
 
     yield
@@ -72,17 +70,14 @@ async def log_traffic_to_mongo(request: Request, call_next):
 
 async def check_permission(db, role: str, service_prefix: str, method: str, path: str) -> bool:
     collection = db["permissions"]
-
-    # Spesifik kural ara (method + path)
+    import re
     rules = collection.find({"service": service_prefix, "method": method})
     async for rule in rules:
         if "path" in rule:
-            import re
             if re.search(rule["path"], path):
                 return role in rule.get("allowed_roles", [])
         else:
             return role in rule.get("allowed_roles", [])
-
     return True
 
 def verify_and_decode_token(authorization: str | None) -> dict | None:
@@ -124,7 +119,7 @@ async def exam_get(path: str, request: Request, authorization: str = Header(None
         ms_response = requests.get(
             f"{EXAM_SERVICE_URL}/{path}",
             params=dict(request.query_params),
-            timeout=2
+            timeout=10
         )
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
@@ -142,7 +137,7 @@ async def exam_post(path: str, request: Request, authorization: str = Header(Non
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         body = await request.json()
-        ms_response = requests.post(f"{EXAM_SERVICE_URL}/{path}", json=body, timeout=2)
+        ms_response = requests.post(f"{EXAM_SERVICE_URL}/{path}", json=body, timeout=10)
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)
@@ -159,7 +154,7 @@ async def exam_put(path: str, request: Request, authorization: str = Header(None
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         body = await request.json()
-        ms_response = requests.put(f"{EXAM_SERVICE_URL}/{path}", json=body, timeout=2)
+        ms_response = requests.put(f"{EXAM_SERVICE_URL}/{path}", json=body, timeout=10)
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)
@@ -175,7 +170,7 @@ async def exam_delete(path: str, request: Request, authorization: str = Header(N
     if not await check_permission(request.app.state.db, payload.get("role"), "exam", "DELETE", path):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
-        ms_response = requests.delete(f"{EXAM_SERVICE_URL}/{path}", timeout=2)
+        ms_response = requests.delete(f"{EXAM_SERVICE_URL}/{path}", timeout=10)
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)
@@ -214,7 +209,7 @@ async def course_post(path: str, request: Request, authorization: str = Header(N
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         body = await request.json()
-        ms_response = requests.post(f"{COURSE_SERVICE_URL}/{path}", json=body, timeout=2)
+        ms_response = requests.post(f"{COURSE_SERVICE_URL}/{path}", json=body, timeout=10)
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)
@@ -234,7 +229,7 @@ async def course_purchase(course_id: str, request: Request, authorization: str =
         ms_response = requests.post(
             f"{COURSE_SERVICE_URL}/courses/{course_id}/purchase",
             json=body,
-            timeout=2
+            timeout=10
         )
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
@@ -252,7 +247,7 @@ async def course_put(path: str, request: Request, authorization: str = Header(No
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         body = await request.json()
-        ms_response = requests.put(f"{COURSE_SERVICE_URL}/{path}", json=body, timeout=2)
+        ms_response = requests.put(f"{COURSE_SERVICE_URL}/{path}", json=body, timeout=10)
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)
@@ -268,7 +263,7 @@ async def course_delete(path: str, request: Request, authorization: str = Header
     if not await check_permission(request.app.state.db, payload.get("role"), "course", "DELETE", path):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
-        ms_response = requests.delete(f"{COURSE_SERVICE_URL}/{path}", timeout=2)
+        ms_response = requests.delete(f"{COURSE_SERVICE_URL}/{path}", timeout=10)
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)
@@ -283,6 +278,68 @@ async def auth_post(path: str, request: Request):
     try:
         body = await request.json()
         ms_response = requests.post(f"{AUTH_SERVICE_URL}/auth/{path}", json=body, timeout=15)
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
+@app.get("/auth/users")
+async def auth_get_users(request: Request, authorization: str = Header(None)):
+    logger.info("Auth servisine GET users isteği")
+    try:
+        ms_response = requests.get(
+            f"{AUTH_SERVICE_URL}/auth/users",
+            headers={"Authorization": authorization},
+            timeout=10
+        )
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
+@app.get("/auth/user/{username}")
+async def auth_get_user(username: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"Auth servisine GET user isteği: {username}")
+    try:
+        ms_response = requests.get(
+            f"{AUTH_SERVICE_URL}/auth/user/{username}",
+            headers={"Authorization": authorization},
+            timeout=10
+        )
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
+@app.put("/auth/user/{username}")
+async def auth_update_user(username: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"Auth servisine PUT user isteği: {username}")
+    try:
+        body = await request.json()
+        ms_response = requests.put(
+            f"{AUTH_SERVICE_URL}/auth/user/{username}",
+            json=body,
+            headers={"Authorization": authorization},
+            timeout=10
+        )
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
+@app.delete("/auth/user/{username}")
+async def auth_delete_user(username: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"Auth servisine DELETE user isteği: {username}")
+    try:
+        ms_response = requests.delete(
+            f"{AUTH_SERVICE_URL}/auth/user/{username}",
+            headers={"Authorization": authorization},
+            timeout=10
+        )
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)
