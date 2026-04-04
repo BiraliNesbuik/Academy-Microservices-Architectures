@@ -5,6 +5,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timezone
 from fastapi import FastAPI, Header, Response, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import requests
 from jose import jwt, JWTError
 from contextlib import asynccontextmanager
@@ -52,6 +53,14 @@ async def lifespan(app: FastAPI):
     app.state.mongo_client.close()
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 async def get_log_count():
     return await app.state.db.traffic_logs.count_documents({})
