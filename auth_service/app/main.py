@@ -17,7 +17,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Bağımlılıklar (Dependencies)
 def get_database(request: Request):
     return request.app.state.db
 
@@ -42,9 +41,64 @@ async def login(data: UserLogin, service: AuthService = Depends(get_auth_service
 async def verify(authorization: str = Header(None), service: AuthService = Depends(get_auth_service)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token bulunamadı")
-    
     token = authorization.split(" ")[1]
     payload = service.decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Geçersiz token")
     return {"username": payload["sub"], "role": payload["role"]}
+
+@app.get("/auth/users")
+async def get_all_users(authorization: str = Header(None), service: AuthService = Depends(get_auth_service)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token bulunamadı")
+    token = authorization.split(" ")[1]
+    payload = service.decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Geçersiz token")
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Sadece admin erişebilir")
+    return await service.get_all_users()
+
+@app.get("/auth/user/{username}")
+async def get_user(username: str, authorization: str = Header(None), service: AuthService = Depends(get_auth_service)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token bulunamadı")
+    token = authorization.split(" ")[1]
+    payload = service.decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Geçersiz token")
+    user = await service.get_user(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+    del user["hashed_password"]
+    return user
+
+@app.put("/auth/user/{username}")
+async def update_password(username: str, data: dict, authorization: str = Header(None), service: AuthService = Depends(get_auth_service)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token bulunamadı")
+    token = authorization.split(" ")[1]
+    payload = service.decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Geçersiz token")
+    if payload.get("role") != "admin" and payload.get("sub") != username:
+        raise HTTPException(status_code=403, detail="Yetkisiz işlem")
+    updated = await service.update_password(username, data.get("password"))
+    if not updated:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+    return {"message": "Şifre güncellendi"}
+
+@app.delete("/auth/user/{username}")
+async def delete_user(username: str, authorization: str = Header(None), service: AuthService = Depends(get_auth_service)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token bulunamadı")
+    token = authorization.split(" ")[1]
+    payload = service.decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Geçersiz token")
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Sadece admin silebilir")
+    deleted = await service.delete_user(username)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+    return {"message": "Kullanıcı silindi"}

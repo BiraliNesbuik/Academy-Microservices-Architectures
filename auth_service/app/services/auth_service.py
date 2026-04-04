@@ -7,7 +7,7 @@ from typing import Optional
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-SECRET_KEY = "gizli_anahtar_123" # Daha sonra .env'e taşınacak [cite: 40]
+SECRET_KEY = "gizli_anahtar_123"
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_MINUTES = 60
 
@@ -44,3 +44,18 @@ class AuthService:
         if not user or not self.verify_password(password, user["hashed_password"]):
             return None
         return self.create_token(username, user["role"])
+
+    async def get_all_users(self) -> list:
+        return await self.repo.get_all_users()
+
+    async def get_user(self, username: str) -> Optional[dict]:
+        return await self.repo.find_by_username(username)
+
+    async def update_password(self, username: str, new_password: str) -> bool:
+        if not await self.repo.username_exists(username):
+            return False
+        hashed = self.hash_password(new_password)
+        return await self.repo.update_user(username, {"hashed_password": hashed})
+
+    async def delete_user(self, username: str) -> bool:
+        return await self.repo.delete_user(username)
