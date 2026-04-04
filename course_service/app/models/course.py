@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 class Course(BaseModel):
     title: str
@@ -13,3 +13,11 @@ class CourseResponse(Course):
 class Purchase(BaseModel):
     username: str
     course_id: str
+
+class CartItem(BaseModel):
+    username: str
+    course_id: str
+
+class Cart(BaseModel):
+    username: str
+    items: List[str] = []

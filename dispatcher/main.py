@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from fastapi import Request
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timezone
@@ -8,7 +7,6 @@ from fastapi import FastAPI, Header, Response, Request
 from fastapi.responses import JSONResponse
 import requests
 from jose import jwt, JWTError
-from motor.motor_asyncio import AsyncIOMotorClient
 from contextlib import asynccontextmanager
 
 logger = logging.getLogger("dispatcher")
@@ -32,8 +30,24 @@ async def lifespan(app: FastAPI):
     count = await app.state.db["permissions"].count_documents({})
     if count == 0:
         await app.state.db["permissions"].insert_many([
-            {"service": "exam",   "allowed_roles": ["teacher", "student", "admin"]},
-            {"service": "course", "allowed_roles": ["teacher", "student", "admin"]},
+            # EXAM
+            {"service": "exam", "method": "GET",    "allowed_roles": ["teacher", "student", "admin"]},
+            {"service": "exam", "method": "POST",   "path": "exams$",  "allowed_roles": ["teacher", "admin"]},
+            {"service": "exam", "method": "POST",   "path": "start",   "allowed_roles": ["student"]},
+            {"service": "exam", "method": "POST",   "path": "answer",  "allowed_roles": ["student"]},
+            {"service": "exam", "method": "POST",   "path": "submit",  "allowed_roles": ["student"]},
+            {"service": "exam", "method": "PUT",    "allowed_roles": ["teacher", "admin"]},
+            {"service": "exam", "method": "DELETE", "allowed_roles": ["teacher", "admin"]},
+            # COURSE
+            {"service": "course", "method": "GET",    "allowed_roles": ["teacher", "student", "admin"]},
+            {"service": "course", "method": "POST",   "path": "courses$", "allowed_roles": ["teacher", "admin"]},
+            {"service": "course", "method": "POST",   "path": "purchase", "allowed_roles": ["student"]},
+            {"service": "course", "method": "PUT",    "allowed_roles": ["teacher", "admin"]},
+            {"service": "course", "method": "DELETE", "allowed_roles": ["teacher", "admin"]},
+
+            {"service": "course", "method": "POST", "path": "cart", "allowed_roles": ["student"]},
+            {"service": "course", "method": "GET",  "path": "cart", "allowed_roles": ["student"]},
+            {"service": "course", "method": "DELETE", "path": "cart", "allowed_roles": ["student"]},
         ])
 
     yield
@@ -56,12 +70,20 @@ async def log_traffic_to_mongo(request: Request, call_next):
     await app.state.db.traffic_logs.insert_one(log_entry)
     return response
 
-async def check_permission(db, role: str, service_prefix: str) -> bool:
+async def check_permission(db, role: str, service_prefix: str, method: str, path: str) -> bool:
     collection = db["permissions"]
-    permission = await collection.find_one({"service": service_prefix})
-    if not permission:
-        return True
-    return role in permission.get("allowed_roles", [])
+
+    # Spesifik kural ara (method + path)
+    rules = collection.find({"service": service_prefix, "method": method})
+    async for rule in rules:
+        if "path" in rule:
+            import re
+            if re.search(rule["path"], path):
+                return role in rule.get("allowed_roles", [])
+        else:
+            return role in rule.get("allowed_roles", [])
+
+    return True
 
 def verify_and_decode_token(authorization: str | None) -> dict | None:
     if not authorization or not authorization.startswith("Bearer "):
@@ -96,7 +118,7 @@ async def exam_get(path: str, request: Request, authorization: str = Header(None
     payload = verify_and_decode_token(authorization)
     if not payload:
         return JSONResponse(status_code=401, content={"error": "Unauthorized"})
-    if not await check_permission(request.app.state.db, payload.get("role"), "exam"):
+    if not await check_permission(request.app.state.db, payload.get("role"), "exam", "GET", path):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         ms_response = requests.get(
@@ -116,7 +138,7 @@ async def exam_post(path: str, request: Request, authorization: str = Header(Non
     payload = verify_and_decode_token(authorization)
     if not payload:
         return JSONResponse(status_code=401, content={"error": "Unauthorized"})
-    if not await check_permission(request.app.state.db, payload.get("role"), "exam"):
+    if not await check_permission(request.app.state.db, payload.get("role"), "exam", "POST", path):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         body = await request.json()
@@ -133,7 +155,7 @@ async def exam_put(path: str, request: Request, authorization: str = Header(None
     payload = verify_and_decode_token(authorization)
     if not payload:
         return JSONResponse(status_code=401, content={"error": "Unauthorized"})
-    if not await check_permission(request.app.state.db, payload.get("role"), "exam"):
+    if not await check_permission(request.app.state.db, payload.get("role"), "exam", "PUT", path):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         body = await request.json()
@@ -150,7 +172,7 @@ async def exam_delete(path: str, request: Request, authorization: str = Header(N
     payload = verify_and_decode_token(authorization)
     if not payload:
         return JSONResponse(status_code=401, content={"error": "Unauthorized"})
-    if not await check_permission(request.app.state.db, payload.get("role"), "exam"):
+    if not await check_permission(request.app.state.db, payload.get("role"), "exam", "DELETE", path):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         ms_response = requests.delete(f"{EXAM_SERVICE_URL}/{path}", timeout=2)
@@ -168,13 +190,13 @@ async def course_get(path: str, request: Request, authorization: str = Header(No
     payload = verify_and_decode_token(authorization)
     if not payload:
         return JSONResponse(status_code=401, content={"error": "Unauthorized"})
-    if not await check_permission(request.app.state.db, payload.get("role"), "course"):
+    if not await check_permission(request.app.state.db, payload.get("role"), "course", "GET", path):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         ms_response = requests.get(
             f"{COURSE_SERVICE_URL}/{path}",
             params=dict(request.query_params),
-            timeout=2
+            timeout=10
         )
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
@@ -188,7 +210,7 @@ async def course_post(path: str, request: Request, authorization: str = Header(N
     payload = verify_and_decode_token(authorization)
     if not payload:
         return JSONResponse(status_code=401, content={"error": "Unauthorized"})
-    if not await check_permission(request.app.state.db, payload.get("role"), "course"):
+    if not await check_permission(request.app.state.db, payload.get("role"), "course", "POST", path):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         body = await request.json()
@@ -205,7 +227,7 @@ async def course_purchase(course_id: str, request: Request, authorization: str =
     payload = verify_and_decode_token(authorization)
     if not payload:
         return JSONResponse(status_code=401, content={"error": "Unauthorized"})
-    if not await check_permission(request.app.state.db, payload.get("role"), "course"):
+    if not await check_permission(request.app.state.db, payload.get("role"), "course", "POST", f"courses/{course_id}/purchase"):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         body = await request.json()
@@ -226,7 +248,7 @@ async def course_put(path: str, request: Request, authorization: str = Header(No
     payload = verify_and_decode_token(authorization)
     if not payload:
         return JSONResponse(status_code=401, content={"error": "Unauthorized"})
-    if not await check_permission(request.app.state.db, payload.get("role"), "course"):
+    if not await check_permission(request.app.state.db, payload.get("role"), "course", "PUT", path):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         body = await request.json()
@@ -243,7 +265,7 @@ async def course_delete(path: str, request: Request, authorization: str = Header
     payload = verify_and_decode_token(authorization)
     if not payload:
         return JSONResponse(status_code=401, content={"error": "Unauthorized"})
-    if not await check_permission(request.app.state.db, payload.get("role"), "course"):
+    if not await check_permission(request.app.state.db, payload.get("role"), "course", "DELETE", path):
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         ms_response = requests.delete(f"{COURSE_SERVICE_URL}/{path}", timeout=2)
