@@ -293,11 +293,13 @@ Aşağıdaki ekran görüntüleri, mikroservislere dışarıdan doğrudan erişi
 
 ❌ **Direkt erişim denemesi — BAŞARISIZ (port dışarıya kapalı):**
 
-![Network Isolation - Direkt Erisim Engeli](BURAYA_8001_HATA_SS_LINKINI_YAPISTIR)
+![Network Isolation - Direkt Erisim Engeli](<img width="694" height="144" alt="Network isolation-1" src="https://github.com/user-attachments/assets/41c7ff44-2cab-46e3-84e5-92dcc21e9994" />
+)
 
 ✅ **Dispatcher üzerinden erişim — BAŞARILI:**
 
-![Network Isolation - Dispatcher Erisimi](BURAYA_8000_BASARILI_SS_LINKINI_YAPISTIR)
+![Network Isolation - Dispatcher Erisimi](<img width="1310" height="52" alt="Network isolation-2" src="https://github.com/user-attachments/assets/ad1ad445-e065-4a32-a049-1e1334af3f7b" />
+)
 
 ### 3.3 Dispatcher Akış Diyagramı
 
