@@ -293,12 +293,12 @@ Aşağıdaki ekran görüntüleri, mikroservislere dışarıdan doğrudan erişi
 
 ❌ **Direkt erişim denemesi — BAŞARISIZ (port dışarıya kapalı):**
 
-![Network Isolation - Direkt Erisim Engeli]<img width="694" height="144" alt="Network isolation-1" src="https://github.com/user-attachments/assets/41c7ff44-2cab-46e3-84e5-92dcc21e9994" />
+<img width="694" height="144" alt="Network isolation-1" src="https://github.com/user-attachments/assets/41c7ff44-2cab-46e3-84e5-92dcc21e9994" />
 
 
 ✅ **Dispatcher üzerinden erişim — BAŞARILI:**
 
-![Network Isolation - Dispatcher Erisimi] <img width="1310" height="52" alt="Network isolation-2" src="https://github.com/user-attachments/assets/ad1ad445-e065-4a32-a049-1e1334af3f7b" />
+<img width="1310" height="52" alt="Network isolation-2" src="https://github.com/user-attachments/assets/ad1ad445-e065-4a32-a049-1e1334af3f7b" />
 
 
 ### 3.3 Dispatcher Akış Diyagramı
@@ -506,26 +506,26 @@ tests/test_auth.py       - 8 passed
 
 #### 50 Kullanıcı Testi
 
-![50 Kullanici - Charts] <img width="1537" height="938" alt="50 kullanıcı charts" src="https://github.com/user-attachments/assets/877f3a86-7262-49ed-98c8-ea21e92c6f75" />
+Chart <img width="1537" height="938" alt="50 kullanıcı charts" src="https://github.com/user-attachments/assets/877f3a86-7262-49ed-98c8-ea21e92c6f75" />
 
 
-![50 Kullanici - Statistics](<img width="1913" height="962" alt="50 kullanıcı statistics" src="https://github.com/user-attachments/assets/75615972-0ff2-49a9-b2c4-65484ad5d754" />
+Statistics(<img width="1913" height="962" alt="50 kullanıcı statistics" src="https://github.com/user-attachments/assets/75615972-0ff2-49a9-b2c4-65484ad5d754" />
 
 
 #### 100 Kullanıcı Testi
 
-![100 Kullanici - Charts] <img width="1551" height="937" alt="100 kullanıcı charts" src="https://github.com/user-attachments/assets/38d9eb0c-7b84-4cad-a75f-84efe89d6a94" />
+Charts <img width="1551" height="937" alt="100 kullanıcı charts" src="https://github.com/user-attachments/assets/38d9eb0c-7b84-4cad-a75f-84efe89d6a94" />
 
 
-![100 Kullanici - Statistics] <img width="1917" height="945" alt="100 kullanıcı statistics" src="https://github.com/user-attachments/assets/db1732dd-5ad3-4d12-be91-ecba5cbf4f11" />
+Statistics <img width="1917" height="945" alt="100 kullanıcı statistics" src="https://github.com/user-attachments/assets/db1732dd-5ad3-4d12-be91-ecba5cbf4f11" />
 
 
 #### 200 Kullanıcı Testi
 
-![200 Kullanici - Charts] <img width="1529" height="939" alt="chart" src="https://github.com/user-attachments/assets/ec1accb4-de4d-4a5b-844c-92969c1e425f" />
+Charts <img width="1529" height="939" alt="chart" src="https://github.com/user-attachments/assets/ec1accb4-de4d-4a5b-844c-92969c1e425f" />
 
 
-![200 Kullanici - Statistics] <img width="1919" height="959" alt="statistics" src="https://github.com/user-attachments/assets/c519cc0c-7eb4-45fb-a260-3db452510084" />
+Statistics <img width="1919" height="959" alt="statistics" src="https://github.com/user-attachments/assets/c519cc0c-7eb4-45fb-a260-3db452510084" />
 
 
 ### 6.3 Grafana Monitoring
@@ -539,20 +539,20 @@ Dispatcher trafiği Prometheus + Grafana ile izlenmektedir. `prometheus-fastapi-
 
 **Yanıt Süresi Grafiği:**
 
-![Grafana - Yanit Suresi Grafigi] <img width="1537" height="814" alt="Yanıt süresi grafiği" src="https://github.com/user-attachments/assets/f8de501b-9045-428d-a770-805b2f05d7f2" />
+Yanit Suresi Grafigi <img width="1537" height="814" alt="Yanıt süresi grafiği" src="https://github.com/user-attachments/assets/f8de501b-9045-428d-a770-805b2f05d7f2" />
 
 
 **Yük Testi ve Trafik Hacmi:**
 
-![Grafana - Yuk Testi ve Trafik Hacmi] <img width="1521" height="760" alt="Yük testi ve trafik hacmi" src="https://github.com/user-attachments/assets/27e5d353-595d-4f5a-a4b0-a8433fd99ad8" />
+Yuk Testi ve Trafik Hacmi <img width="1521" height="760" alt="Yük testi ve trafik hacmi" src="https://github.com/user-attachments/assets/27e5d353-595d-4f5a-a4b0-a8433fd99ad8" />
 
 
 **Trafik Log Tabloları:**
 
-![Grafana - Trafik Log Tablosu 1] <img width="1523" height="742" alt="Tablo 1" src="https://github.com/user-attachments/assets/aa0b462b-c319-4eed-935e-10e3415e8f7d" />
+Trafik Log Tablosu 1 <img width="1523" height="742" alt="Tablo 1" src="https://github.com/user-attachments/assets/aa0b462b-c319-4eed-935e-10e3415e8f7d" />
 
 
-![Grafana - Trafik Log Tablosu 2] <img width="1518" height="742" alt="Tablo 2" src="https://github.com/user-attachments/assets/4dc4d2da-034c-4e58-8a29-801aa788d5a1" />
+Trafik Log Tablosu 2 <img width="1518" height="742" alt="Tablo 2" src="https://github.com/user-attachments/assets/4dc4d2da-034c-4e58-8a29-801aa788d5a1" />
 
 
 ---
