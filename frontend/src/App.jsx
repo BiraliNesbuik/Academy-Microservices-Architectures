@@ -241,191 +241,280 @@ function CalendarTab({ token, username, role }) {
     )
   }
 
+  const hasAnySlotsThisWeek = weekDays.some(d => slotsForDay(formatDate(d)).length > 0)
+
   return (
-    <div>
+    <div className="flex flex-col gap-6">
+
       {message && (
-        <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${messageType === "success" ? "bg-green-800 text-green-200" : "bg-red-800 text-red-200"}`}>
+        <div className={`px-4 py-3 rounded-lg text-sm font-medium ${messageType === "success" ? "bg-green-900 border border-green-700 text-green-200" : "bg-red-900 border border-red-700 text-red-200"}`}>
           {message}
         </div>
       )}
 
-      {/* Teacher: slot oluşturma formu */}
+      {/* Slot oluşturma formu (teacher / admin) */}
       {(role === "teacher" || role === "admin") && (
-        <div className="bg-gray-800 rounded-xl p-5 mb-6">
-          <h3 className="font-semibold mb-4 text-gray-300">Yeni Slot Ekle</h3>
+        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6">
+          <h3 className="font-semibold text-white mb-4">Yeni Ders Slotu Ekle</h3>
           <div className="flex gap-3 flex-wrap items-end">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-400">Tarih</label>
-              <input
-                type="date"
-                className="bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-400">Tarih</label>
+              <input type="date"
+                className="bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
                 value={newSlot.date}
                 onChange={e => setNewSlot({ ...newSlot, date: e.target.value })}
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-400">Başlangıç</label>
-              <input
-                type="time"
-                className="bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-400">Başlangıç</label>
+              <input type="time"
+                className="bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
                 value={newSlot.start_time}
                 onChange={e => setNewSlot({ ...newSlot, start_time: e.target.value })}
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-400">Bitiş</label>
-              <input
-                type="time"
-                className="bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-gray-400">Bitiş</label>
+              <input type="time"
+                className="bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
                 value={newSlot.end_time}
                 onChange={e => setNewSlot({ ...newSlot, end_time: e.target.value })}
               />
             </div>
-            <div className="flex flex-col gap-1 flex-1 min-w-36">
-              <label className="text-xs text-gray-400">Not (isteğe bağlı)</label>
+            <div className="flex flex-col gap-1.5 flex-1 min-w-40">
+              <label className="text-xs font-medium text-gray-400">Not <span className="text-gray-600">(isteğe bağlı)</span></label>
               <input
-                className="bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="bg-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
                 placeholder="Örn: Online ders"
                 value={newSlot.note}
                 onChange={e => setNewSlot({ ...newSlot, note: e.target.value })}
               />
             </div>
-            <button onClick={createSlot} className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg transition">
-              Ekle
+            <button onClick={createSlot}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition">
+              Slot Ekle
             </button>
           </div>
         </div>
       )}
 
       {/* Hafta navigasyonu */}
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={prevWeek} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition">
-          ← Önceki
+      <div className="flex items-center justify-between">
+        <button onClick={prevWeek} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition text-sm font-medium">
+          ← Önceki Hafta
         </button>
-        <span className="text-gray-300 font-medium">{weekLabel}</span>
-        <button onClick={nextWeek} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition">
-          Sonraki →
+        <div className="text-center">
+          <div className="text-white font-semibold text-lg">{weekLabel}</div>
+        </div>
+        <button onClick={nextWeek} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition text-sm font-medium">
+          Sonraki Hafta →
         </button>
       </div>
 
-      {/* Haftalık grid */}
+      {/* Mini hafta özeti (tıklanabilir günler) */}
       <div className="grid grid-cols-7 gap-2">
         {weekDays.map((day, i) => {
           const dateStr = formatDate(day)
-          const daySlots = slotsForDay(dateStr)
+          const count = slotsForDay(dateStr).length
           const isToday = formatDate(new Date()) === dateStr
-
           return (
-            <div key={dateStr} className={`bg-gray-800 rounded-xl p-3 min-h-32 ${isToday ? "ring-2 ring-blue-500" : ""}`}>
-              <div className="text-center mb-2">
-                <div className="text-xs text-gray-400">{DAYS_TR[i]}</div>
-                <div className={`text-sm font-bold ${isToday ? "text-blue-400" : "text-white"}`}>{day.getDate()}</div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                {daySlots.map(slot => {
-                  const appt = appointmentForSlot(slot.id)
-
-                  const history = historyForSlot(slot.id)
-                  return (
-                    <div key={slot.id} className={`rounded-lg p-2 text-xs ${slot.is_available ? "bg-blue-900 border border-blue-700" : "bg-gray-700 border border-gray-600"}`}>
-                      <div className="font-semibold text-white">{slot.start_time}–{slot.end_time}</div>
-                      {slot.note && <div className="text-gray-400 truncate">{slot.note}</div>}
-
-                      {/* Teacher/Admin: aktif randevu detayı + onayla/reddet */}
-                      {(role === "teacher" || role === "admin") && appt && (
-                        <div className="mt-1">
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusBadge[appt.status]}`}>
-                            {statusLabel[appt.status]}
-                          </span>
-                          <div className="text-gray-300 mt-0.5 truncate">{appt.student_username}</div>
-                          {appt.student_note && <div className="text-gray-400 truncate italic">"{appt.student_note}"</div>}
-                          {appt.status === "pending" && (
-                            <div className="flex gap-1 mt-1">
-                              <button onClick={() => updateAppointment(appt.id, "approved")} className="flex-1 bg-green-700 hover:bg-green-600 text-white rounded px-1 py-0.5">✓</button>
-                              <button onClick={() => updateAppointment(appt.id, "rejected")} className="flex-1 bg-red-700 hover:bg-red-600 text-white rounded px-1 py-0.5">✗</button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Admin: geçmiş randevular (iptal/reddedilen) */}
-                      {role === "admin" && history.length > 0 && (
-                        <div className="mt-1 border-t border-gray-600 pt-1">
-                          <div className="text-gray-500 text-xs mb-0.5">Geçmiş ({history.length})</div>
-                          {history.map(h => (
-                            <div key={h.id} className="flex items-center justify-between gap-1">
-                              <span className="text-gray-500 truncate">{h.student_username}</span>
-                              <span className={`text-xs px-1 rounded-full ${statusBadge[h.status]}`}>{statusLabel[h.status]}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Teacher: boş slot sil */}
-                      {(role === "teacher" || role === "admin") && !appt && (
-                        <button onClick={() => deleteSlot(slot.id)} className="mt-1 w-full text-red-400 hover:text-red-300 text-xs">
-                          Sil
-                        </button>
-                      )}
-
-                      {/* Student: müsait slot talep et */}
-                      {role === "student" && slot.is_available && (
-                        requestingSlot === slot.id ? (
-                          <div className="mt-1">
-                            <input
-                              className="w-full bg-gray-600 text-white rounded px-1 py-0.5 text-xs mb-1 focus:outline-none"
-                              placeholder="Not (isteğe bağlı)"
-                              value={requestNote}
-                              onChange={e => setRequestNote(e.target.value)}
-                            />
-                            <div className="flex gap-1">
-                              <button onClick={() => requestAppointment(slot.id)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded px-1 py-0.5">Gönder</button>
-                              <button onClick={() => setRequestingSlot(null)} className="flex-1 bg-gray-600 hover:bg-gray-500 text-white rounded px-1 py-0.5">İptal</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button onClick={() => setRequestingSlot(slot.id)} className="mt-1 w-full bg-blue-600 hover:bg-blue-700 text-white rounded px-1 py-0.5 text-xs">
-                            Talep Et
-                          </button>
-                        )
-                      )}
-
-                      {/* Student: kendi randevusu */}
-                      {role === "student" && appt && (
-                        <div className="mt-1">
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusBadge[appt.status]}`}>
-                            {statusLabel[appt.status]}
-                          </span>
-                          {appt.teacher_note && <div className="text-gray-400 mt-0.5 truncate italic">"{appt.teacher_note}"</div>}
-                          {appt.status === "pending" && (
-                            <button onClick={() => cancelAppointment(appt.id)} className="mt-1 w-full text-red-400 hover:text-red-300 text-xs">
-                              İptal Et
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+            <a key={dateStr} href={`#day-${dateStr}`}
+              className={`rounded-xl p-3 text-center cursor-pointer transition border
+                ${isToday ? "bg-blue-600 border-blue-500" : count > 0 ? "bg-gray-700 border-gray-600 hover:bg-gray-600" : "bg-gray-800 border-gray-700 opacity-50"}`}>
+              <div className="text-xs text-gray-300">{DAYS_TR[i]}</div>
+              <div className={`text-xl font-bold mt-0.5 ${isToday ? "text-white" : "text-white"}`}>{day.getDate()}</div>
+              {count > 0 && <div className="text-xs mt-1 text-blue-300">{count} slot</div>}
+            </a>
           )
         })}
       </div>
 
+      {/* Günlük slot listesi */}
+      {!hasAnySlotsThisWeek ? (
+        <div className="text-center py-12 text-gray-500">
+          Bu haftaya ait slot bulunmuyor.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          {weekDays.map((day, i) => {
+            const dateStr = formatDate(day)
+            const daySlots = slotsForDay(dateStr)
+            if (daySlots.length === 0) return null
+            const isToday = formatDate(new Date()) === dateStr
+
+            return (
+              <div key={dateStr} id={`day-${dateStr}`}>
+                {/* Gün başlığı */}
+                <div className={`flex items-center gap-3 mb-3`}>
+                  <div className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center text-xs font-bold
+                    ${isToday ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300"}`}>
+                    <span className="text-xs leading-none">{DAYS_TR[i]}</span>
+                    <span className="text-base leading-none">{day.getDate()}</span>
+                  </div>
+                  <div>
+                    <div className="text-white font-semibold">
+                      {DAYS_TR[i]}, {day.getDate()} {MONTHS_TR[day.getMonth()]}
+                      {isToday && <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">Bugün</span>}
+                    </div>
+                    <div className="text-gray-400 text-xs">{daySlots.length} slot</div>
+                  </div>
+                </div>
+
+                {/* Slotlar */}
+                <div className="flex flex-col gap-3 ml-13">
+                  {daySlots.map(slot => {
+                    const appt = appointmentForSlot(slot.id)
+                    const history = historyForSlot(slot.id)
+
+                    const slotColor = !slot.is_available
+                      ? appt?.status === "approved"
+                        ? "border-green-700 bg-green-950"
+                        : "border-yellow-700 bg-yellow-950"
+                      : "border-gray-600 bg-gray-800"
+
+                    return (
+                      <div key={slot.id} className={`rounded-xl border p-4 ${slotColor}`}>
+                        <div className="flex items-start justify-between gap-4 flex-wrap">
+
+                          {/* Sol: saat ve not */}
+                          <div className="flex items-center gap-4">
+                            <div className="text-white font-bold text-lg tabular-nums">
+                              {slot.start_time} – {slot.end_time}
+                            </div>
+                            {slot.note && (
+                              <div className="text-gray-400 text-sm">{slot.note}</div>
+                            )}
+                            {slot.is_available
+                              ? <span className="text-xs px-2 py-1 rounded-full bg-blue-900 text-blue-300 border border-blue-700">Müsait</span>
+                              : <span className={`text-xs px-2 py-1 rounded-full border ${statusBadge[appt?.status]} border-current`}>{statusLabel[appt?.status]}</span>
+                            }
+                          </div>
+
+                          {/* Sağ: işlem butonları */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Teacher/Admin: boş slot sil */}
+                            {(role === "teacher" || role === "admin") && slot.is_available && (
+                              <button onClick={() => deleteSlot(slot.id)}
+                                className="text-sm text-red-400 hover:text-red-300 border border-red-800 hover:border-red-600 px-3 py-1.5 rounded-lg transition">
+                                Sil
+                              </button>
+                            )}
+
+                            {/* Teacher/Admin: onayla / reddet */}
+                            {(role === "teacher" || role === "admin") && appt?.status === "pending" && (
+                              <>
+                                <button onClick={() => updateAppointment(appt.id, "approved")}
+                                  className="text-sm bg-green-700 hover:bg-green-600 text-white px-4 py-1.5 rounded-lg transition font-medium">
+                                  Onayla
+                                </button>
+                                <button onClick={() => updateAppointment(appt.id, "rejected")}
+                                  className="text-sm bg-red-800 hover:bg-red-700 text-white px-4 py-1.5 rounded-lg transition font-medium">
+                                  Reddet
+                                </button>
+                              </>
+                            )}
+
+                            {/* Student: talep et */}
+                            {role === "student" && slot.is_available && requestingSlot !== slot.id && (
+                              <button onClick={() => setRequestingSlot(slot.id)}
+                                className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg transition font-medium">
+                                Randevu Talep Et
+                              </button>
+                            )}
+
+                            {/* Student: iptal et */}
+                            {role === "student" && appt?.status === "pending" && (
+                              <button onClick={() => cancelAppointment(appt.id)}
+                                className="text-sm border border-red-800 text-red-400 hover:bg-red-900 px-3 py-1.5 rounded-lg transition">
+                                İptal Et
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Randevu detayı (teacher/admin) */}
+                        {(role === "teacher" || role === "admin") && appt && (
+                          <div className="mt-3 pt-3 border-t border-gray-700 flex flex-wrap gap-4">
+                            <div>
+                              <div className="text-xs text-gray-500 mb-0.5">Öğrenci</div>
+                              <div className="text-white font-medium">{appt.student_username}</div>
+                            </div>
+                            {appt.student_note && (
+                              <div>
+                                <div className="text-xs text-gray-500 mb-0.5">Not</div>
+                                <div className="text-gray-300 italic">"{appt.student_note}"</div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Öğrencinin kendi randevusu detayı */}
+                        {role === "student" && appt && (
+                          <div className="mt-3 pt-3 border-t border-gray-700">
+                            {appt.teacher_note && (
+                              <div>
+                                <div className="text-xs text-gray-500 mb-0.5">Öğretmen notu</div>
+                                <div className="text-gray-300 italic">"{appt.teacher_note}"</div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Student: not giriş formu */}
+                        {role === "student" && slot.is_available && requestingSlot === slot.id && (
+                          <div className="mt-3 pt-3 border-t border-gray-700 flex gap-2 items-center flex-wrap">
+                            <input
+                              className="flex-1 min-w-48 bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
+                              placeholder="Not ekle (isteğe bağlı)"
+                              value={requestNote}
+                              onChange={e => setRequestNote(e.target.value)}
+                            />
+                            <button onClick={() => requestAppointment(slot.id)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                              Gönder
+                            </button>
+                            <button onClick={() => setRequestingSlot(null)}
+                              className="text-gray-400 hover:text-white px-3 py-2 rounded-lg text-sm transition">
+                              Vazgeç
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Admin: geçmiş (iptal/reddedilen) */}
+                        {role === "admin" && history.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-gray-700">
+                            <div className="text-xs text-gray-500 mb-2">Geçmiş talepler</div>
+                            <div className="flex flex-wrap gap-2">
+                              {history.map(h => (
+                                <span key={h.id} className={`text-xs px-2 py-1 rounded-full ${statusBadge[h.status]}`}>
+                                  {h.student_username} — {statusLabel[h.status]}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* Admin: özet istatistikler */}
       {role === "admin" && appointments.length > 0 && (
-        <div className="mt-8 grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-5 gap-3">
           {[
-            { label: "Toplam", value: counts.total, color: "bg-gray-700" },
-            { label: "Bekliyor", value: counts.pending, color: "bg-yellow-900" },
-            { label: "Onaylandı", value: counts.approved, color: "bg-green-900" },
-            { label: "Reddedildi", value: counts.rejected, color: "bg-red-900" },
-            { label: "İptal", value: counts.cancelled, color: "bg-gray-800 border border-gray-600" },
+            { label: "Toplam", value: counts.total, color: "bg-gray-700 border-gray-600" },
+            { label: "Bekliyor", value: counts.pending, color: "bg-yellow-950 border-yellow-800" },
+            { label: "Onaylandı", value: counts.approved, color: "bg-green-950 border-green-800" },
+            { label: "Reddedildi", value: counts.rejected, color: "bg-red-950 border-red-900" },
+            { label: "İptal", value: counts.cancelled, color: "bg-gray-800 border-gray-700" },
           ].map(stat => (
-            <div key={stat.label} className={`${stat.color} rounded-xl p-4 text-center`}>
-              <div className="text-2xl font-bold text-white">{stat.value}</div>
+            <div key={stat.label} className={`${stat.color} border rounded-xl p-4 text-center`}>
+              <div className="text-3xl font-bold text-white">{stat.value}</div>
               <div className="text-xs text-gray-400 mt-1">{stat.label}</div>
             </div>
           ))}
@@ -434,34 +523,33 @@ function CalendarTab({ token, username, role }) {
 
       {/* Randevu listesi (teacher + admin) */}
       {(role === "teacher" || role === "admin") && appointments.length > 0 && (
-        <div className="mt-6">
+        <div>
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <h3 className="text-gray-300 font-semibold">
+            <h3 className="text-white font-semibold text-lg">
               {role === "admin" ? "Tüm Randevular" : "Randevular"}
             </h3>
             {role === "admin" && (
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-wrap">
                 {["all","pending","approved","rejected","cancelled"].map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setStatusFilter(s)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition ${statusFilter === s ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"}`}
-                  >
+                  <button key={s} onClick={() => setStatusFilter(s)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border
+                      ${statusFilter === s ? "bg-blue-600 border-blue-500 text-white" : "bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700"}`}>
                     {s === "all" ? "Tümü" : statusLabel[s]}
+                    {s !== "all" && <span className="ml-1 opacity-60">({counts[s]})</span>}
                   </button>
                 ))}
               </div>
             )}
           </div>
-          <div className="bg-gray-800 rounded-xl overflow-hidden">
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-700 text-gray-300">
-                  <th className="text-left px-4 py-3">Öğrenci</th>
-                  <th className="text-left px-4 py-3">Tarih / Saat</th>
-                  <th className="text-left px-4 py-3">Öğrenci Notu</th>
-                  <th className="text-left px-4 py-3">Durum</th>
-                  <th className="text-right px-4 py-3">İşlem</th>
+                <tr className="bg-gray-750 border-b border-gray-700 text-gray-400 text-xs uppercase tracking-wide">
+                  <th className="text-left px-5 py-3">Öğrenci</th>
+                  <th className="text-left px-5 py-3">Tarih / Saat</th>
+                  <th className="text-left px-5 py-3">Not</th>
+                  <th className="text-left px-5 py-3">Durum</th>
+                  <th className="text-right px-5 py-3">İşlem</th>
                 </tr>
               </thead>
               <tbody>
@@ -469,25 +557,30 @@ function CalendarTab({ token, username, role }) {
                   const slot = slots.find(s => s.id === appt.slot_id)
                   const isInactive = ["rejected","cancelled"].includes(appt.status)
                   return (
-                    <tr key={appt.id} className={`border-t border-gray-700 ${isInactive ? "opacity-50" : ""}`}>
-                      <td className="px-4 py-3 text-white">{appt.student_username}</td>
-                      <td className="px-4 py-3 text-gray-300">{slot ? `${slot.date} ${slot.start_time}–${slot.end_time}` : "—"}</td>
-                      <td className="px-4 py-3 text-gray-400 italic max-w-xs truncate">{appt.student_note || "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-1 rounded-full ${statusBadge[appt.status]}`}>
+                    <tr key={appt.id} className={`border-t border-gray-700 transition hover:bg-gray-750 ${isInactive ? "opacity-40" : ""}`}>
+                      <td className="px-5 py-4 text-white font-medium">{appt.student_username}</td>
+                      <td className="px-5 py-4 text-gray-300 tabular-nums">
+                        {slot ? <><span className="text-gray-400">{slot.date}</span> {slot.start_time}–{slot.end_time}</> : "—"}
+                      </td>
+                      <td className="px-5 py-4 text-gray-400 italic max-w-xs truncate">{appt.student_note || "—"}</td>
+                      <td className="px-5 py-4">
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusBadge[appt.status]}`}>
                           {statusLabel[appt.status]}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-5 py-4 text-right">
                         <div className="flex gap-2 justify-end">
                           {appt.status === "pending" && (
                             <>
-                              <button onClick={() => updateAppointment(appt.id, "approved")} className="text-green-400 hover:text-green-300">Onayla</button>
-                              <button onClick={() => updateAppointment(appt.id, "rejected")} className="text-red-400 hover:text-red-300">Reddet</button>
+                              <button onClick={() => updateAppointment(appt.id, "approved")}
+                                className="text-green-400 hover:text-green-300 text-sm font-medium">Onayla</button>
+                              <button onClick={() => updateAppointment(appt.id, "rejected")}
+                                className="text-red-400 hover:text-red-300 text-sm font-medium">Reddet</button>
                             </>
                           )}
                           {role === "admin" && (
-                            <button onClick={() => deleteAppointment(appt.id)} className="text-gray-500 hover:text-red-400">Sil</button>
+                            <button onClick={() => deleteAppointment(appt.id)}
+                              className="text-gray-500 hover:text-red-400 text-sm transition">Sil</button>
                           )}
                         </div>
                       </td>
@@ -496,7 +589,7 @@ function CalendarTab({ token, username, role }) {
                 })}
                 {filteredAppointments.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-gray-500">Bu durumda randevu yok.</td>
+                    <td colSpan={5} className="px-5 py-10 text-center text-gray-500">Bu durumda randevu yok.</td>
                   </tr>
                 )}
               </tbody>
