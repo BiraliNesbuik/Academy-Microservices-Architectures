@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 const API = "http://localhost:8000"
 
@@ -105,6 +105,8 @@ function CalendarTab({ token, username, role }) {
   const [statusFilter, setStatusFilter] = useState("all")
 
   const headers = { Authorization: `Bearer ${token}` }
+
+  useEffect(() => { load() }, [])
 
   const showMsg = (msg, type = "success") => {
     setMessage(msg)
@@ -228,18 +230,12 @@ function CalendarTab({ token, username, role }) {
 
   const monthGrid = getMonthGrid(viewYear, viewMonth)
   const todayStr = formatDate(today)
-
-  if (!loaded) {
-    return (
-      <div className="text-center py-20">
-        <button onClick={load} className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition">
-          Takvimi Yükle
-        </button>
-      </div>
-    )
-  }
-
   const selectedSlots = slotsForDay(selectedDate)
+
+  // Yaklaşan müsait slotlar (bugün ve sonrası, tarihe göre sıralı)
+  const upcomingAvailable = slots
+    .filter(s => s.is_available && s.date >= todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))
 
   return (
     <div className="flex flex-col gap-6">
@@ -249,6 +245,71 @@ function CalendarTab({ token, username, role }) {
           {message}
         </div>
       )}
+
+      {/* ── MÜSAİT SAATLER ── */}
+      <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-semibold">Yaklaşan Müsait Saatler</h3>
+          <span className="text-xs text-gray-400 bg-gray-700 px-2.5 py-1 rounded-full">{upcomingAvailable.length} slot</span>
+        </div>
+        {upcomingAvailable.length === 0 ? (
+          <p className="text-gray-500 text-sm">Şu an müsait slot bulunmuyor.</p>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {upcomingAvailable.map(slot => {
+              const slotDate = new Date(slot.date + "T00:00:00")
+              const dayName = DAYS_TR[(slotDate.getDay() + 6) % 7]
+              const monthName = MONTHS_TR[slotDate.getMonth()]
+              const isRequestingThis = requestingSlot === slot.id
+              return (
+                <div key={slot.id} className="bg-gray-700 border border-gray-600 hover:border-blue-600 rounded-xl p-3 flex flex-col gap-2 min-w-44 transition">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
+                    <span className="text-gray-400 text-xs">{dayName}, {slotDate.getDate()} {monthName}</span>
+                  </div>
+                  <div className="text-white font-bold tabular-nums text-lg">{slot.start_time} – {slot.end_time}</div>
+                  {slot.note && <div className="text-gray-400 text-xs">{slot.note}</div>}
+
+                  {(role === "teacher" || role === "admin") && (
+                    <button onClick={() => { setSelectedDate(slot.date); setViewYear(slotDate.getFullYear()); setViewMonth(slotDate.getMonth()) }}
+                      className="text-xs text-blue-400 hover:text-blue-300 text-left transition">
+                      Takvimde göster →
+                    </button>
+                  )}
+
+                  {role === "student" && (
+                    isRequestingThis ? (
+                      <div className="flex flex-col gap-1.5">
+                        <input
+                          className="bg-gray-600 text-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-500"
+                          placeholder="Not (isteğe bağlı)"
+                          value={requestNote}
+                          onChange={e => setRequestNote(e.target.value)}
+                        />
+                        <div className="flex gap-1">
+                          <button onClick={() => requestAppointment(slot.id)}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-2 py-1.5 text-xs font-medium transition">
+                            Gönder
+                          </button>
+                          <button onClick={() => setRequestingSlot(null)}
+                            className="text-gray-400 hover:text-white px-2 py-1.5 text-xs transition">
+                            Vazgeç
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => setRequestingSlot(slot.id)}
+                        className="text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1.5 font-medium transition">
+                        Talep Et
+                      </button>
+                    )
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       <div className="flex gap-6 items-start flex-wrap lg:flex-nowrap">
 
@@ -641,36 +702,39 @@ function Dashboard({ token, username, role, onLogout }) {
     const res = await fetch(`${API}/course/courses`, { headers })
     const data = await res.json()
     setCourses(Array.isArray(data) ? data : [])
-    setActiveTab("courses")
   }
 
   const loadExams = async () => {
     const res = await fetch(`${API}/exam/exams`, { headers })
     const data = await res.json()
     setExams(Array.isArray(data) ? data : [])
-    setActiveTab("exams")
   }
 
   const loadUsers = async () => {
     const res = await fetch(`${API}/auth/users`, { headers })
     const data = await res.json()
     setUsers(Array.isArray(data) ? data : [])
-    setActiveTab("users")
   }
 
   const loadCart = async () => {
     const res = await fetch(`${API}/course/courses/cart?username=${username}`, { headers })
     const data = await res.json()
     setCart(data.items || [])
-    setActiveTab("cart")
   }
 
   const loadPurchases = async () => {
     const res = await fetch(`${API}/course/courses/my-purchases?username=${username}`, { headers })
     const data = await res.json()
     setPurchases(Array.isArray(data) ? data : [])
-    setActiveTab("purchases")
   }
+
+  useEffect(() => {
+    if (activeTab === "courses") loadCourses()
+    else if (activeTab === "exams") loadExams()
+    else if (activeTab === "users") loadUsers()
+    else if (activeTab === "cart") loadCart()
+    else if (activeTab === "purchases") loadPurchases()
+  }, [activeTab])
 
   const addToCart = async (courseId) => {
     const res = await fetch(`${API}/course/courses/cart/add`, {
@@ -759,10 +823,10 @@ function Dashboard({ token, username, role, onLogout }) {
 
       {/* Tabs */}
       <div className="flex gap-2 px-6 mt-6 flex-wrap">
-        <button onClick={loadCourses} className={`px-5 py-2 rounded-lg font-medium transition ${activeTab === "courses" ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"}`}>
+        <button onClick={() => setActiveTab("courses")} className={`px-5 py-2 rounded-lg font-medium transition ${activeTab === "courses" ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"}`}>
           Kurslar
         </button>
-        <button onClick={loadExams} className={`px-5 py-2 rounded-lg font-medium transition ${activeTab === "exams" ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"}`}>
+        <button onClick={() => setActiveTab("exams")} className={`px-5 py-2 rounded-lg font-medium transition ${activeTab === "exams" ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"}`}>
           Sınavlar
         </button>
         <button onClick={() => setActiveTab("calendar")} className={`px-5 py-2 rounded-lg font-medium transition ${activeTab === "calendar" ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"}`}>
@@ -770,10 +834,10 @@ function Dashboard({ token, username, role, onLogout }) {
         </button>
         {role === "student" && (
           <>
-            <button onClick={loadCart} className={`px-5 py-2 rounded-lg font-medium transition ${activeTab === "cart" ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"}`}>
+            <button onClick={() => setActiveTab("cart")} className={`px-5 py-2 rounded-lg font-medium transition ${activeTab === "cart" ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"}`}>
               Sepet {cart.length > 0 && <span className="ml-1 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{cart.length}</span>}
             </button>
-            <button onClick={loadPurchases} className={`px-5 py-2 rounded-lg font-medium transition ${activeTab === "purchases" ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"}`}>
+            <button onClick={() => setActiveTab("purchases")} className={`px-5 py-2 rounded-lg font-medium transition ${activeTab === "purchases" ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"}`}>
               Satın Aldıklarım
             </button>
           </>
@@ -822,7 +886,7 @@ function Dashboard({ token, username, role, onLogout }) {
               </div>
             )}
             <h2 className="text-lg font-semibold mb-4 text-gray-300">Mevcut Kurslar</h2>
-            {courses.length === 0 && <p className="text-gray-500">Kursları görmek için "Kurslar" butonuna tıklayın.</p>}
+            {courses.length === 0 && <p className="text-gray-500">Henüz kurs bulunmuyor.</p>}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {courses.map(course => (
                 <div key={course.id} className="bg-gray-800 rounded-xl p-5 flex flex-col gap-3">
@@ -874,7 +938,7 @@ function Dashboard({ token, username, role, onLogout }) {
               </div>
             )}
             <h2 className="text-lg font-semibold mb-4 text-gray-300">Mevcut Sınavlar</h2>
-            {exams.length === 0 && <p className="text-gray-500">Sınavları görmek için "Sınavlar" butonuna tıklayın.</p>}
+            {exams.length === 0 && <p className="text-gray-500">Henüz sınav bulunmuyor.</p>}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {exams.map(exam => (
                 <div key={exam.id} className="bg-gray-800 rounded-xl p-5">
