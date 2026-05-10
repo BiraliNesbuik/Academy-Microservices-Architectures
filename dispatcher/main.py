@@ -22,6 +22,7 @@ DB_NAME = "dispatcher_db"
 EXAM_SERVICE_URL = "http://exam-service:8000"
 COURSE_SERVICE_URL = "http://course-service:8000"
 AUTH_SERVICE_URL = "http://auth-service:8001"
+BOOKING_SERVICE_URL = "http://booking-service:8000"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -39,6 +40,13 @@ async def lifespan(app: FastAPI):
             {"service": "exam", "method": "POST",   "path": "submit",  "allowed_roles": ["student"]},
             {"service": "exam", "method": "PUT",    "allowed_roles": ["teacher", "admin"]},
             {"service": "exam", "method": "DELETE", "allowed_roles": ["teacher", "admin"]},
+            # BOOKING
+            {"service": "booking", "method": "GET",    "allowed_roles": ["teacher", "student", "admin"]},
+            {"service": "booking", "method": "POST",   "path": "slots",        "allowed_roles": ["teacher", "admin"]},
+            {"service": "booking", "method": "POST",   "path": "appointments", "allowed_roles": ["student"]},
+            {"service": "booking", "method": "PUT",    "path": "appointments", "allowed_roles": ["teacher", "student", "admin"]},
+            {"service": "booking", "method": "DELETE", "path": "slots",        "allowed_roles": ["teacher", "admin"]},
+            {"service": "booking", "method": "DELETE", "path": "appointments", "allowed_roles": ["teacher", "admin"]},
             # COURSE
             {"service": "course", "method": "GET",    "allowed_roles": ["teacher", "student", "admin"]},
             {"service": "course", "method": "POST",   "path": "courses$", "allowed_roles": ["teacher", "admin"]},
@@ -276,6 +284,78 @@ async def course_delete(path: str, request: Request, authorization: str = Header
         return JSONResponse(status_code=403, content={"error": "Forbidden"})
     try:
         ms_response = requests.delete(f"{COURSE_SERVICE_URL}/{path}", timeout=10)
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
+# ── BOOKING SERVİSİ ───────────────────────────────────────────────
+
+@app.get("/booking/{path:path}")
+async def booking_get(path: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"booking servisine GET isteği: /{path}")
+    payload = verify_and_decode_token(authorization)
+    if not payload:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "booking", "GET", path):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
+    try:
+        ms_response = requests.get(
+            f"{BOOKING_SERVICE_URL}/{path}",
+            params=dict(request.query_params),
+            timeout=10
+        )
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
+@app.post("/booking/{path:path}")
+async def booking_post(path: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"booking servisine POST isteği: /{path}")
+    payload = verify_and_decode_token(authorization)
+    if not payload:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "booking", "POST", path):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
+    try:
+        body = await request.json()
+        ms_response = requests.post(f"{BOOKING_SERVICE_URL}/{path}", json=body, timeout=10)
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
+@app.put("/booking/{path:path}")
+async def booking_put(path: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"booking servisine PUT isteği: /{path}")
+    payload = verify_and_decode_token(authorization)
+    if not payload:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "booking", "PUT", path):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
+    try:
+        body = await request.json()
+        ms_response = requests.put(f"{BOOKING_SERVICE_URL}/{path}", json=body, timeout=10)
+        return _forward_response(ms_response)
+    except requests.exceptions.Timeout:
+        return Response(status_code=504)
+    except requests.exceptions.RequestException:
+        return Response(status_code=503)
+
+@app.delete("/booking/{path:path}")
+async def booking_delete(path: str, request: Request, authorization: str = Header(None)):
+    logger.info(f"booking servisine DELETE isteği: /{path}")
+    payload = verify_and_decode_token(authorization)
+    if not payload:
+        return JSONResponse(status_code=401, content={"error": "Unauthorized"})
+    if not await check_permission(request.app.state.db, payload.get("role"), "booking", "DELETE", path):
+        return JSONResponse(status_code=403, content={"error": "Forbidden"})
+    try:
+        ms_response = requests.delete(f"{BOOKING_SERVICE_URL}/{path}", timeout=10)
         return _forward_response(ms_response)
     except requests.exceptions.Timeout:
         return Response(status_code=504)

@@ -11,6 +11,7 @@ services:
       - auth-service
       - course-service
       - exam-service
+      - booking-service
     networks:
       - internal
 
@@ -43,6 +44,17 @@ services:
     networks:
       - internal
 
+  booking-service:
+    build: ./booking_service
+    expose:
+      - "8000"
+    environment:
+      - MONGO_URL=mongodb://booking-mongo:27017
+    depends_on:
+      - booking-mongo
+    networks:
+      - internal
+
   dispatcher-mongo:
     image: mongo:7
     volumes:
@@ -68,6 +80,13 @@ services:
     image: mongo:7
     volumes:
       - exam-mongo-data:/data/db
+    networks:
+      - internal
+
+  booking-mongo:
+    image: mongo:7
+    volumes:
+      - booking-mongo-data:/data/db
     networks:
       - internal
 
@@ -113,4 +132,5 @@ volumes:
   auth-mongo-data:
   course-mongo-data:
   exam-mongo-data:
+  booking-mongo-data:
   grafana-data:
