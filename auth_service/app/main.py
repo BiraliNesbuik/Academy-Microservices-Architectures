@@ -8,10 +8,25 @@ from app.services.auth_service import AuthService
 MONGO_URL = "mongodb://auth-mongo:27017"
 DB_NAME = "auth_db"
 
+SEED_USERS = [
+    {"username": "emir",     "password": "123", "role": "admin"},
+    {"username": "ogr1",     "password": "123", "role": "student"},
+    {"username": "ogr2",     "password": "123", "role": "student"},
+]
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.mongo_client = AsyncIOMotorClient(MONGO_URL)
     app.state.db = app.state.mongo_client[DB_NAME]
+
+    repo = UserRepository(app.state.db)
+    from app.services.auth_service import AuthService as _AS
+    svc = _AS(repo)
+    from app.models.user import UserRegister
+    for u in SEED_USERS:
+        if not await repo.username_exists(u["username"]):
+            await svc.register(UserRegister(username=u["username"], password=u["password"], role=u["role"]))
+
     yield
     app.state.mongo_client.close()
 
