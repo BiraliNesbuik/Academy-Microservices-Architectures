@@ -103,6 +103,7 @@ function CalendarTab({ token, username, role }) {
   const [requestNote, setRequestNote] = useState("")
   const [requestingSlot, setRequestingSlot] = useState(null)
   const [loaded, setLoaded] = useState(false)
+  const [statusFilter, setStatusFilter] = useState("all")
 
   const headers = { Authorization: `Bearer ${token}` }
 
@@ -192,12 +193,31 @@ function CalendarTab({ token, username, role }) {
     }
   }
 
+  const deleteAppointment = async (apptId) => {
+    const res = await fetch(`${API}/booking/appointments/${apptId}`, { method: "DELETE", headers })
+    if (res.ok || res.status === 204) {
+      showMsg("Randevu silindi")
+      load()
+    }
+  }
+
   const weekDays = getWeekDays(weekStart)
   const prevWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d) }
   const nextWeek = () => { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d) }
 
   const slotsForDay = (dateStr) => slots.filter(s => s.date === dateStr)
-  const appointmentForSlot = (slotId) => appointments.find(a => a.slot_id === slotId)
+  const appointmentForSlot = (slotId) => appointments.find(a => a.slot_id === slotId && ["pending","approved"].includes(a.status))
+  const historyForSlot = (slotId) => appointments.filter(a => a.slot_id === slotId && ["rejected","cancelled"].includes(a.status))
+
+  const filteredAppointments = statusFilter === "all" ? appointments : appointments.filter(a => a.status === statusFilter)
+
+  const counts = {
+    total: appointments.length,
+    pending: appointments.filter(a => a.status === "pending").length,
+    approved: appointments.filter(a => a.status === "approved").length,
+    rejected: appointments.filter(a => a.status === "rejected").length,
+    cancelled: appointments.filter(a => a.status === "cancelled").length,
+  }
 
   const statusBadge = {
     pending:  "bg-yellow-800 text-yellow-300",
@@ -306,12 +326,13 @@ function CalendarTab({ token, username, role }) {
                 {daySlots.map(slot => {
                   const appt = appointmentForSlot(slot.id)
 
+                  const history = historyForSlot(slot.id)
                   return (
                     <div key={slot.id} className={`rounded-lg p-2 text-xs ${slot.is_available ? "bg-blue-900 border border-blue-700" : "bg-gray-700 border border-gray-600"}`}>
                       <div className="font-semibold text-white">{slot.start_time}–{slot.end_time}</div>
                       {slot.note && <div className="text-gray-400 truncate">{slot.note}</div>}
 
-                      {/* Teacher: randevu detayı + onayla/reddet */}
+                      {/* Teacher/Admin: aktif randevu detayı + onayla/reddet */}
                       {(role === "teacher" || role === "admin") && appt && (
                         <div className="mt-1">
                           <span className={`text-xs px-1.5 py-0.5 rounded-full ${statusBadge[appt.status]}`}>
@@ -325,6 +346,19 @@ function CalendarTab({ token, username, role }) {
                               <button onClick={() => updateAppointment(appt.id, "rejected")} className="flex-1 bg-red-700 hover:bg-red-600 text-white rounded px-1 py-0.5">✗</button>
                             </div>
                           )}
+                        </div>
+                      )}
+
+                      {/* Admin: geçmiş randevular (iptal/reddedilen) */}
+                      {role === "admin" && history.length > 0 && (
+                        <div className="mt-1 border-t border-gray-600 pt-1">
+                          <div className="text-gray-500 text-xs mb-0.5">Geçmiş ({history.length})</div>
+                          {history.map(h => (
+                            <div key={h.id} className="flex items-center justify-between gap-1">
+                              <span className="text-gray-500 truncate">{h.student_username}</span>
+                              <span className={`text-xs px-1 rounded-full ${statusBadge[h.status]}`}>{statusLabel[h.status]}</span>
+                            </div>
+                          ))}
                         </div>
                       )}
 
@@ -380,28 +414,64 @@ function CalendarTab({ token, username, role }) {
         })}
       </div>
 
-      {/* Randevu listesi (teacher) */}
+      {/* Admin: özet istatistikler */}
+      {role === "admin" && appointments.length > 0 && (
+        <div className="mt-8 grid grid-cols-5 gap-3">
+          {[
+            { label: "Toplam", value: counts.total, color: "bg-gray-700" },
+            { label: "Bekliyor", value: counts.pending, color: "bg-yellow-900" },
+            { label: "Onaylandı", value: counts.approved, color: "bg-green-900" },
+            { label: "Reddedildi", value: counts.rejected, color: "bg-red-900" },
+            { label: "İptal", value: counts.cancelled, color: "bg-gray-800 border border-gray-600" },
+          ].map(stat => (
+            <div key={stat.label} className={`${stat.color} rounded-xl p-4 text-center`}>
+              <div className="text-2xl font-bold text-white">{stat.value}</div>
+              <div className="text-xs text-gray-400 mt-1">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Randevu listesi (teacher + admin) */}
       {(role === "teacher" || role === "admin") && appointments.length > 0 && (
-        <div className="mt-8">
-          <h3 className="text-gray-300 font-semibold mb-3">Tüm Randevular</h3>
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h3 className="text-gray-300 font-semibold">
+              {role === "admin" ? "Tüm Randevular" : "Randevular"}
+            </h3>
+            {role === "admin" && (
+              <div className="flex gap-1">
+                {["all","pending","approved","rejected","cancelled"].map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setStatusFilter(s)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition ${statusFilter === s ? "bg-blue-600 text-white" : "bg-gray-700 text-gray-300 hover:bg-gray-600"}`}
+                  >
+                    {s === "all" ? "Tümü" : statusLabel[s]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="bg-gray-800 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-700 text-gray-300">
                   <th className="text-left px-4 py-3">Öğrenci</th>
                   <th className="text-left px-4 py-3">Tarih / Saat</th>
-                  <th className="text-left px-4 py-3">Not</th>
+                  <th className="text-left px-4 py-3">Öğrenci Notu</th>
                   <th className="text-left px-4 py-3">Durum</th>
                   <th className="text-right px-4 py-3">İşlem</th>
                 </tr>
               </thead>
               <tbody>
-                {appointments.map(appt => {
+                {filteredAppointments.map(appt => {
                   const slot = slots.find(s => s.id === appt.slot_id)
+                  const isInactive = ["rejected","cancelled"].includes(appt.status)
                   return (
-                    <tr key={appt.id} className="border-t border-gray-700">
+                    <tr key={appt.id} className={`border-t border-gray-700 ${isInactive ? "opacity-50" : ""}`}>
                       <td className="px-4 py-3 text-white">{appt.student_username}</td>
-                      <td className="px-4 py-3 text-gray-300">{slot ? `${slot.date} ${slot.start_time}–${slot.end_time}` : appt.slot_id}</td>
+                      <td className="px-4 py-3 text-gray-300">{slot ? `${slot.date} ${slot.start_time}–${slot.end_time}` : "—"}</td>
                       <td className="px-4 py-3 text-gray-400 italic max-w-xs truncate">{appt.student_note || "—"}</td>
                       <td className="px-4 py-3">
                         <span className={`text-xs px-2 py-1 rounded-full ${statusBadge[appt.status]}`}>
@@ -409,16 +479,26 @@ function CalendarTab({ token, username, role }) {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {appt.status === "pending" && (
-                          <div className="flex gap-2 justify-end">
-                            <button onClick={() => updateAppointment(appt.id, "approved")} className="text-green-400 hover:text-green-300">Onayla</button>
-                            <button onClick={() => updateAppointment(appt.id, "rejected")} className="text-red-400 hover:text-red-300">Reddet</button>
-                          </div>
-                        )}
+                        <div className="flex gap-2 justify-end">
+                          {appt.status === "pending" && (
+                            <>
+                              <button onClick={() => updateAppointment(appt.id, "approved")} className="text-green-400 hover:text-green-300">Onayla</button>
+                              <button onClick={() => updateAppointment(appt.id, "rejected")} className="text-red-400 hover:text-red-300">Reddet</button>
+                            </>
+                          )}
+                          {role === "admin" && (
+                            <button onClick={() => deleteAppointment(appt.id)} className="text-gray-500 hover:text-red-400">Sil</button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
                 })}
+                {filteredAppointments.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-gray-500">Bu durumda randevu yok.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
