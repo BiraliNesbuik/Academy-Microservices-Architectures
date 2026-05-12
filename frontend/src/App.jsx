@@ -5,6 +5,30 @@ const API = "http://localhost:8000"
 const DAYS_TR = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
 const MONTHS_TR = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"]
 
+// Geçerli dakika değerleri: 10'un katları + çeyrek saatler
+const VALID_MINUTES = [0, 10, 15, 20, 30, 40, 45, 50]
+
+function generateTimeOptions() {
+  const options = []
+  for (let h = 0; h < 24; h++) {
+    for (const m of VALID_MINUTES) {
+      const hh = String(h).padStart(2, "0")
+      const mm = String(m).padStart(2, "0")
+      options.push(`${hh}:${mm}`)
+    }
+  }
+  return options
+}
+
+const TIME_OPTIONS = generateTimeOptions()
+
+function addOneHour(timeStr) {
+  if (!timeStr) return ""
+  const [h, m] = timeStr.split(":").map(Number)
+  const newH = (h + 1) % 24
+  return `${String(newH).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+}
+
 function parseJwt(token) {
   try {
     return JSON.parse(atob(token.split('.')[1]))
@@ -396,19 +420,29 @@ function CalendarTab({ token, username, role }) {
                 <div className="flex gap-2 flex-wrap items-end">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs text-gray-500">Başlangıç</label>
-                    <input type="time"
+                    <select
                       className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
                       value={newSlot.start_time}
-                      onChange={e => setNewSlot({ ...newSlot, start_time: e.target.value })}
-                    />
+                      onChange={e => {
+                        const start = e.target.value
+                        const end = addOneHour(start)
+                        setNewSlot({ ...newSlot, start_time: start, end_time: end })
+                      }}
+                    >
+                      <option value="">Saat seçin</option>
+                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-xs text-gray-500">Bitiş</label>
-                    <input type="time"
+                    <select
                       className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
                       value={newSlot.end_time}
                       onChange={e => setNewSlot({ ...newSlot, end_time: e.target.value })}
-                    />
+                    >
+                      <option value="">Saat seçin</option>
+                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
                   </div>
                   <div className="flex flex-col gap-1 flex-1 min-w-32">
                     <label className="text-xs text-gray-500">Not</label>
