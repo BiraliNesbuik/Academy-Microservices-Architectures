@@ -42,11 +42,9 @@ async def lifespan(app: FastAPI):
             {"service": "exam", "method": "DELETE", "allowed_roles": ["teacher", "admin"]},
             # BOOKING
             {"service": "booking", "method": "GET",    "allowed_roles": ["teacher", "student", "admin"]},
-            {"service": "booking", "method": "POST",   "path": "slots",        "allowed_roles": ["teacher", "admin"]},
-            {"service": "booking", "method": "POST",   "path": "appointments", "allowed_roles": ["student"]},
-            {"service": "booking", "method": "PUT",    "path": "appointments", "allowed_roles": ["teacher", "student", "admin"]},
-            {"service": "booking", "method": "DELETE", "path": "slots",        "allowed_roles": ["teacher", "admin"]},
-            {"service": "booking", "method": "DELETE", "path": "appointments", "allowed_roles": ["teacher", "admin"]},
+            {"service": "booking", "method": "POST",   "allowed_roles": ["student", "teacher", "admin"]},
+            {"service": "booking", "method": "PUT",    "allowed_roles": ["teacher", "admin"]},
+            {"service": "booking", "method": "DELETE", "allowed_roles": ["teacher", "admin"]},
             # COURSE
             {"service": "course", "method": "GET",    "allowed_roles": ["teacher", "student", "admin"]},
             {"service": "course", "method": "POST",   "path": "courses$", "allowed_roles": ["teacher", "admin"]},

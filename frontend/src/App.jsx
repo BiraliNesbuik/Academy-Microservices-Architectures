@@ -57,7 +57,68 @@ function getMonthGrid(year, month) {
   return days
 }
 
-function Login({ onLogin }) {
+// ── LANDING PAGE ────────────────────────────────────────────────────
+
+function LandingPage({ onGoLogin }) {
+  return (
+    <div className="min-h-screen bg-gray-900 flex flex-col">
+
+      {/* Nav */}
+      <nav className="flex items-center justify-between px-8 py-5">
+        <span className="text-2xl font-bold text-blue-400">Dil Akademisi</span>
+        <button
+          onClick={onGoLogin}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium transition text-sm"
+        >
+          Giriş Yap
+        </button>
+      </nav>
+
+      {/* Hero */}
+      <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-20">
+        <div className="inline-block bg-blue-900 border border-blue-700 text-blue-300 text-xs font-semibold px-4 py-1.5 rounded-full mb-6 tracking-wide uppercase">
+          Özel Dil Eğitimi
+        </div>
+        <h1 className="text-5xl md:text-6xl font-extrabold text-white mb-6 leading-tight">
+          Senin hızında,<br />
+          <span className="text-blue-400">senin zamanında</span> öğren.
+        </h1>
+        <p className="text-gray-400 text-lg max-w-xl mb-10">
+          Birebir dersler, esnek saatler ve kişiselleştirilmiş içeriklerle
+          hedefine en hızlı şekilde ulaş.
+        </p>
+        <button
+          onClick={onGoLogin}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition shadow-lg shadow-blue-900/40"
+        >
+          Hemen Başla →
+        </button>
+      </div>
+
+      {/* Features */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto w-full px-8 pb-20">
+        {[
+          { icon: "📅", title: "Kolay Randevu", desc: "İstediğin tarih ve saatte ders talebi oluştur, gerisi bize kalsın." },
+          { icon: "📚", title: "Kişisel Müfredat", desc: "Seviyene ve hedeflerine göre hazırlanmış ders planı." },
+          { icon: "🎯", title: "Hedef Odaklı", desc: "A1'den C2'ye, sınav hazırlığından günlük konuşmaya kadar." },
+        ].map(f => (
+          <div key={f.title} className="bg-gray-800 border border-gray-700 rounded-2xl p-6">
+            <div className="text-3xl mb-3">{f.icon}</div>
+            <h3 className="text-white font-semibold mb-2">{f.title}</h3>
+            <p className="text-gray-400 text-sm leading-relaxed">{f.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div className="text-center text-gray-600 text-xs pb-6">
+        © 2026 Dil Akademisi
+      </div>
+    </div>
+  )
+}
+
+function Login({ onLogin, onBack }) {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -84,6 +145,11 @@ function Login({ onLogin }) {
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">
       <div className="bg-gray-800 p-8 rounded-2xl shadow-xl w-96">
+        {onBack && (
+          <button onClick={onBack} className="text-gray-500 hover:text-gray-300 text-sm mb-4 flex items-center gap-1 transition">
+            ← Ana sayfaya dön
+          </button>
+        )}
         <h1 className="text-3xl font-bold text-white mb-2">Dil Akademisi</h1>
         <p className="text-gray-400 mb-6">Hesabınıza giriş yapın</p>
         {error && <p className="text-red-400 mb-4 text-sm">{error}</p>}
@@ -115,82 +181,55 @@ function Login({ onLogin }) {
 
 function CalendarTab({ token, username, role }) {
   const today = new Date()
-  const [slots, setSlots] = useState([])
+  const todayStr = formatDate(today)
+
   const [appointments, setAppointments] = useState([])
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
-  const [selectedDate, setSelectedDate] = useState(formatDate(today))
+  const [selectedDate, setSelectedDate] = useState(todayStr)
   const [message, setMessage] = useState("")
   const [messageType, setMessageType] = useState("success")
-  const [newSlot, setNewSlot] = useState({ date: formatDate(today), start_time: "", end_time: "", note: "" })
-  const [requestNote, setRequestNote] = useState("")
-  const [requestingSlot, setRequestingSlot] = useState(null)
-  const [loaded, setLoaded] = useState(false)
   const [statusFilter, setStatusFilter] = useState("all")
+
+  // Öğrenci talep formu
+  const [reqTime, setReqTime] = useState("")
+  const [reqNote, setReqNote] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
   const headers = { Authorization: `Bearer ${token}` }
 
   useEffect(() => { load() }, [])
 
   const showMsg = (msg, type = "success") => {
-    setMessage(msg)
-    setMessageType(type)
-    setTimeout(() => setMessage(""), 3000)
+    setMessage(msg); setMessageType(type)
+    setTimeout(() => setMessage(""), 3500)
   }
 
   const load = async () => {
-    const [sRes, aRes] = await Promise.all([
-      fetch(`${API}/booking/slots`, { headers }),
-      fetch(`${API}/booking/appointments${role === "student" ? `?student_username=${username}` : ""}`, { headers })
-    ])
-    const sData = await sRes.json()
-    const aData = await aRes.json()
-    setSlots(Array.isArray(sData) ? sData : [])
-    setAppointments(Array.isArray(aData) ? aData : [])
-    setLoaded(true)
-  }
-
-  const createSlot = async () => {
-    const res = await fetch(`${API}/booking/slots`, {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify(newSlot)
-    })
+    const res = await fetch(
+      `${API}/booking/appointments${role === "student" ? `?student_username=${username}` : ""}`,
+      { headers }
+    )
     const data = await res.json()
-    if (res.ok) {
-      showMsg("Slot oluşturuldu")
-      setNewSlot({ date: "", start_time: "", end_time: "", note: "" })
-      load()
-    } else {
-      showMsg(data.detail || "Hata oluştu", "error")
-    }
+    setAppointments(Array.isArray(data) ? data : [])
   }
 
-  const deleteSlot = async (slotId) => {
-    const res = await fetch(`${API}/booking/slots/${slotId}`, { method: "DELETE", headers })
-    if (res.ok || res.status === 204) {
-      showMsg("Slot silindi")
-      load()
-    } else {
-      const data = await res.json()
-      showMsg(data.detail || "Silinemedi", "error")
-    }
-  }
-
-  const requestAppointment = async (slotId) => {
+  const submitRequest = async () => {
+    if (!selectedDate || !reqTime) { showMsg("Tarih ve saat seçmelisiniz.", "error"); return }
+    setSubmitting(true)
     const res = await fetch(`${API}/booking/appointments`, {
       method: "POST",
       headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ slot_id: slotId, student_username: username, student_note: requestNote })
+      body: JSON.stringify({ date: selectedDate, start_time: reqTime, student_username: username, student_note: reqNote })
     })
     const data = await res.json()
+    setSubmitting(false)
     if (res.ok) {
-      showMsg("Randevu talebiniz gönderildi")
-      setRequestingSlot(null)
-      setRequestNote("")
+      showMsg("Randevu talebiniz gönderildi! En kısa sürede ulaşacağız.")
+      setReqTime(""); setReqNote("")
       load()
     } else {
-      showMsg(data.detail || "Hata oluştu", "error")
+      showMsg(data.detail || "Bir hata oluştu.", "error")
     }
   }
 
@@ -206,59 +245,38 @@ function CalendarTab({ token, username, role }) {
     }
   }
 
-  const cancelAppointment = async (apptId) => {
-    const res = await fetch(`${API}/booking/appointments/${apptId}`, {
-      method: "PUT",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "cancelled" })
-    })
-    if (res.ok) {
-      showMsg("Randevu iptal edildi")
-      load()
-    }
-  }
-
   const deleteAppointment = async (apptId) => {
     const res = await fetch(`${API}/booking/appointments/${apptId}`, { method: "DELETE", headers })
-    if (res.ok || res.status === 204) {
-      showMsg("Randevu silindi")
-      load()
-    }
+    if (res.ok || res.status === 204) { showMsg("Randevu silindi"); load() }
   }
 
   const prevMonth = () => { if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) } else setViewMonth(m => m - 1) }
   const nextMonth = () => { if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) } else setViewMonth(m => m + 1) }
 
-  const slotsForDay = (dateStr) => slots.filter(s => s.date === dateStr)
-  const appointmentForSlot = (slotId) => appointments.find(a => a.slot_id === slotId && ["pending","approved"].includes(a.status))
-  const historyForSlot = (slotId) => appointments.filter(a => a.slot_id === slotId && ["rejected","cancelled"].includes(a.status))
   const filteredAppointments = statusFilter === "all" ? appointments : appointments.filter(a => a.status === statusFilter)
+  const apptsForDay = (dateStr) => appointments.filter(a => a.date === dateStr)
 
   const counts = {
-    total: appointments.length,
-    pending: appointments.filter(a => a.status === "pending").length,
-    approved: appointments.filter(a => a.status === "approved").length,
-    rejected: appointments.filter(a => a.status === "rejected").length,
+    total:     appointments.length,
+    pending:   appointments.filter(a => a.status === "pending").length,
+    approved:  appointments.filter(a => a.status === "approved").length,
+    rejected:  appointments.filter(a => a.status === "rejected").length,
     cancelled: appointments.filter(a => a.status === "cancelled").length,
   }
 
   const statusBadge = {
-    pending:  "bg-yellow-800 text-yellow-300",
-    approved: "bg-green-800 text-green-300",
-    rejected: "bg-red-800 text-red-300",
+    pending:   "bg-yellow-800 text-yellow-300",
+    approved:  "bg-green-800 text-green-300",
+    rejected:  "bg-red-800 text-red-300",
     cancelled: "bg-gray-700 text-gray-400"
   }
-  const statusLabel = {
-    pending: "Bekliyor", approved: "Onaylandı", rejected: "Reddedildi", cancelled: "İptal"
-  }
+  const statusLabel = { pending: "Bekliyor", approved: "Onaylandı", rejected: "Reddedildi", cancelled: "İptal" }
 
   const monthGrid = getMonthGrid(viewYear, viewMonth)
-  const todayStr = formatDate(today)
-  const selectedSlots = slotsForDay(selectedDate)
 
-  // Yaklaşan müsait slotlar (bugün ve sonrası, tarihe göre sıralı)
-  const upcomingAvailable = slots
-    .filter(s => s.is_available && s.date >= todayStr)
+  // Öğrenci: yaklaşan onaylı dersler
+  const upcomingApproved = appointments
+    .filter(a => a.status === "approved" && a.date >= todayStr)
     .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))
 
   return (
@@ -270,112 +288,57 @@ function CalendarTab({ token, username, role }) {
         </div>
       )}
 
-      {/* ── MÜSAİT SAATLER ── */}
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-semibold">Yaklaşan Müsait Saatler</h3>
-          <span className="text-xs text-gray-400 bg-gray-700 px-2.5 py-1 rounded-full">{upcomingAvailable.length} slot</span>
-        </div>
-        {upcomingAvailable.length === 0 ? (
-          <p className="text-gray-500 text-sm">Şu an müsait slot bulunmuyor.</p>
-        ) : (
+      {/* ── ÖĞRENCİ: Yaklaşan onaylı dersler ── */}
+      {role === "student" && upcomingApproved.length > 0 && (
+        <div className="bg-green-950 border border-green-800 rounded-2xl p-5">
+          <h3 className="text-green-300 font-semibold mb-3">Yaklaşan Derslerim</h3>
           <div className="flex flex-wrap gap-3">
-            {upcomingAvailable.map(slot => {
-              const slotDate = new Date(slot.date + "T00:00:00")
-              const dayName = DAYS_TR[(slotDate.getDay() + 6) % 7]
-              const monthName = MONTHS_TR[slotDate.getMonth()]
-              const isRequestingThis = requestingSlot === slot.id
+            {upcomingApproved.map(a => {
+              const d = new Date(a.date + "T00:00:00")
               return (
-                <div key={slot.id} className="bg-gray-700 border border-gray-600 hover:border-blue-600 rounded-xl p-3 flex flex-col gap-2 min-w-44 transition">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
-                    <span className="text-gray-400 text-xs">{dayName}, {slotDate.getDate()} {monthName}</span>
-                  </div>
-                  <div className="text-white font-bold tabular-nums text-lg">{slot.start_time} – {slot.end_time}</div>
-                  {slot.note && <div className="text-gray-400 text-xs">{slot.note}</div>}
-
-                  {(role === "teacher" || role === "admin") && (
-                    <button onClick={() => { setSelectedDate(slot.date); setViewYear(slotDate.getFullYear()); setViewMonth(slotDate.getMonth()) }}
-                      className="text-xs text-blue-400 hover:text-blue-300 text-left transition">
-                      Takvimde göster →
-                    </button>
-                  )}
-
-                  {role === "student" && (
-                    isRequestingThis ? (
-                      <div className="flex flex-col gap-1.5">
-                        <input
-                          className="bg-gray-600 text-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-500"
-                          placeholder="Not (isteğe bağlı)"
-                          value={requestNote}
-                          onChange={e => setRequestNote(e.target.value)}
-                        />
-                        <div className="flex gap-1">
-                          <button onClick={() => requestAppointment(slot.id)}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-2 py-1.5 text-xs font-medium transition">
-                            Gönder
-                          </button>
-                          <button onClick={() => setRequestingSlot(null)}
-                            className="text-gray-400 hover:text-white px-2 py-1.5 text-xs transition">
-                            Vazgeç
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button onClick={() => setRequestingSlot(slot.id)}
-                        className="text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1.5 font-medium transition">
-                        Talep Et
-                      </button>
-                    )
-                  )}
+                <div key={a.id} className="bg-green-900 border border-green-700 rounded-xl px-4 py-3 flex flex-col gap-1">
+                  <div className="text-green-200 text-xs">{DAYS_TR[(d.getDay() + 6) % 7]}, {d.getDate()} {MONTHS_TR[d.getMonth()]}</div>
+                  <div className="text-white font-bold tabular-nums">{a.start_time}</div>
+                  {a.teacher_note && <div className="text-green-300 text-xs italic">"{a.teacher_note}"</div>}
                 </div>
               )
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="flex gap-6 items-start flex-wrap lg:flex-nowrap">
 
         {/* ── AYLIK TAKVİM ── */}
         <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5 w-full lg:w-80 shrink-0">
-
-          {/* Ay navigasyonu */}
           <div className="flex items-center justify-between mb-4">
             <button onClick={prevMonth} className="text-gray-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700 transition text-lg">‹</button>
             <span className="text-white font-semibold">{MONTHS_TR[viewMonth]} {viewYear}</span>
             <button onClick={nextMonth} className="text-gray-400 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700 transition text-lg">›</button>
           </div>
 
-          {/* Gün başlıkları */}
           <div className="grid grid-cols-7 mb-1">
-            {DAYS_TR.map(d => (
-              <div key={d} className="text-center text-xs font-medium text-gray-500 py-1">{d}</div>
-            ))}
+            {DAYS_TR.map(d => <div key={d} className="text-center text-xs font-medium text-gray-500 py-1">{d}</div>)}
           </div>
 
-          {/* Gün hücreleri */}
           <div className="grid grid-cols-7 gap-y-1">
             {monthGrid.map((day, idx) => {
               if (!day) return <div key={idx} />
               const dateStr = formatDate(day)
-              const daySlots = slotsForDay(dateStr)
-              const isToday = dateStr === todayStr
+              const dayAppts = apptsForDay(dateStr)
+              const isToday    = dateStr === todayStr
               const isSelected = dateStr === selectedDate
-              const hasPending = daySlots.some(s => appointmentForSlot(s.id)?.status === "pending")
-              const hasApproved = daySlots.some(s => appointmentForSlot(s.id)?.status === "approved")
-              const hasAvailable = daySlots.some(s => s.is_available)
-
+              const hasPending  = dayAppts.some(a => a.status === "pending")
+              const hasApproved = dayAppts.some(a => a.status === "approved")
               return (
-                <button key={dateStr} onClick={() => { setSelectedDate(dateStr); setNewSlot(n => ({...n, date: dateStr})) }}
+                <button key={dateStr}
+                  onClick={() => { setSelectedDate(dateStr); setReqTime("") }}
                   className={`relative flex flex-col items-center justify-center h-9 w-full rounded-lg text-sm font-medium transition
                     ${isSelected ? "bg-blue-600 text-white" : isToday ? "border border-blue-500 text-blue-400" : "text-gray-300 hover:bg-gray-700"}`}>
                   {day.getDate()}
-                  {/* Nokta göstergeler */}
-                  {daySlots.length > 0 && !isSelected && (
+                  {dayAppts.length > 0 && !isSelected && (
                     <div className="flex gap-0.5 absolute bottom-1">
-                      {hasAvailable && <span className="w-1 h-1 rounded-full bg-blue-400" />}
-                      {hasPending && <span className="w-1 h-1 rounded-full bg-yellow-400" />}
+                      {hasPending  && <span className="w-1 h-1 rounded-full bg-yellow-400" />}
                       {hasApproved && <span className="w-1 h-1 rounded-full bg-green-400" />}
                     </div>
                   )}
@@ -384,12 +347,10 @@ function CalendarTab({ token, username, role }) {
             })}
           </div>
 
-          {/* Gösterge açıklaması */}
           <div className="mt-4 pt-4 border-t border-gray-700 flex flex-col gap-1.5">
             {[
-              { color: "bg-blue-400", label: "Müsait slot" },
-              { color: "bg-yellow-400", label: "Bekleyen randevu" },
-              { color: "bg-green-400", label: "Onaylanan randevu" },
+              { color: "bg-yellow-400", label: "Bekleyen talep" },
+              { color: "bg-green-400",  label: "Onaylanan randevu" },
             ].map(item => (
               <div key={item.label} className="flex items-center gap-2 text-xs text-gray-400">
                 <span className={`w-2 h-2 rounded-full ${item.color}`} />
@@ -399,316 +360,167 @@ function CalendarTab({ token, username, role }) {
           </div>
         </div>
 
-        {/* ── SAĞ PANEL: seçili günün slotları ── */}
+        {/* ── SAĞ PANEL ── */}
         <div className="flex-1 flex flex-col gap-4">
 
-          {/* Seçili gün başlığı + slot ekleme */}
-          <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
-            <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
-              <div>
-                <div className="text-white font-semibold text-lg">
-                  {selectedDate === todayStr ? "Bugün" : ""} {selectedDate}
+          {/* ÖĞRENCİ: Randevu talep formu */}
+          {role === "student" && (
+            <div className="bg-gray-800 border border-gray-700 rounded-2xl p-5">
+              <h3 className="text-white font-semibold mb-1">Ders Talebi Oluştur</h3>
+              <p className="text-gray-400 text-sm mb-5">Uygun olduğun tarihi ve saati seç, talebini gönder. Sana en kısa sürede ulaşacağız.</p>
+              <div className="flex gap-3 flex-wrap items-end">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500">Seçili Tarih</label>
+                  <div className="bg-gray-700 border border-gray-600 text-white rounded-lg px-4 py-2 text-sm tabular-nums min-w-32 text-center font-medium">
+                    {selectedDate}
+                  </div>
                 </div>
-                <div className="text-gray-400 text-sm">{selectedSlots.length > 0 ? `${selectedSlots.length} slot` : "Bu gün için slot yok"}</div>
-              </div>
-            </div>
-
-            {/* Slot oluşturma formu (teacher / admin) */}
-            {(role === "teacher" || role === "admin") && (
-              <div className="border-t border-gray-700 pt-4">
-                <div className="text-xs font-medium text-gray-400 mb-3">Bu güne slot ekle</div>
-                <div className="flex gap-2 flex-wrap items-end">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-gray-500">Başlangıç</label>
-                    <select
-                      className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
-                      value={newSlot.start_time}
-                      onChange={e => {
-                        const start = e.target.value
-                        const end = addOneHour(start)
-                        setNewSlot({ ...newSlot, start_time: start, end_time: end })
-                      }}
-                    >
-                      <option value="">Saat seçin</option>
-                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-gray-500">Bitiş</label>
-                    <select
-                      className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
-                      value={newSlot.end_time}
-                      onChange={e => setNewSlot({ ...newSlot, end_time: e.target.value })}
-                    >
-                      <option value="">Saat seçin</option>
-                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1 flex-1 min-w-32">
-                    <label className="text-xs text-gray-500">Not</label>
-                    <input
-                      className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
-                      placeholder="İsteğe bağlı"
-                      value={newSlot.note}
-                      onChange={e => setNewSlot({ ...newSlot, note: e.target.value })}
-                    />
-                  </div>
-                  <button onClick={createSlot}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition">
-                    Ekle
-                  </button>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500">Saat</label>
+                  <select
+                    className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
+                    value={reqTime}
+                    onChange={e => setReqTime(e.target.value)}
+                  >
+                    <option value="">Saat seçin</option>
+                    {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
                 </div>
+                <div className="flex flex-col gap-1 flex-1 min-w-40">
+                  <label className="text-xs text-gray-500">Not</label>
+                  <input
+                    className="bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
+                    placeholder="Konu, seviye... (isteğe bağlı)"
+                    value={reqNote}
+                    onChange={e => setReqNote(e.target.value)}
+                  />
+                </div>
+                <button
+                  onClick={submitRequest}
+                  disabled={submitting}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition"
+                >
+                  {submitting ? "Gönderiliyor..." : "Talep Gönder"}
+                </button>
               </div>
-            )}
-          </div>
-
-          {/* Slot kartları */}
-          {selectedSlots.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 bg-gray-800 border border-gray-700 rounded-2xl">
-              {role === "student" ? "Bu gün için müsait slot yok." : "Bu gün için henüz slot eklenmedi."}
+              <p className="text-gray-600 text-xs mt-4">← Soldan tarih seçebilirsin</p>
             </div>
-          ) : (
-            selectedSlots.map(slot => {
-              const appt = appointmentForSlot(slot.id)
-              const history = historyForSlot(slot.id)
-              const borderColor = !slot.is_available
-                ? appt?.status === "approved" ? "border-green-700" : "border-yellow-700"
-                : "border-gray-600"
+          )}
 
-              return (
-                <div key={slot.id} className={`bg-gray-800 border ${borderColor} rounded-2xl p-5`}>
-                  <div className="flex items-center justify-between flex-wrap gap-3">
-                    <div className="flex items-center gap-4">
-                      <div className="text-white font-bold text-xl tabular-nums">{slot.start_time} – {slot.end_time}</div>
-                      {slot.note && <div className="text-gray-400 text-sm">{slot.note}</div>}
-                      {slot.is_available
-                        ? <span className="text-xs px-2.5 py-1 rounded-full bg-blue-900 text-blue-300 border border-blue-800">Müsait</span>
-                        : <span className={`text-xs px-2.5 py-1 rounded-full ${statusBadge[appt?.status]}`}>{statusLabel[appt?.status]}</span>
-                      }
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      {(role === "teacher" || role === "admin") && slot.is_available && (
-                        <button onClick={() => deleteSlot(slot.id)}
-                          className="text-sm text-red-400 hover:text-red-300 border border-red-900 hover:border-red-700 px-3 py-1.5 rounded-lg transition">
-                          Sil
-                        </button>
-                      )}
-                      {(role === "teacher" || role === "admin") && appt?.status === "pending" && (
-                        <>
-                          <button onClick={() => updateAppointment(appt.id, "approved")}
-                            className="text-sm bg-green-700 hover:bg-green-600 text-white px-4 py-1.5 rounded-lg transition font-medium">
-                            Onayla
-                          </button>
-                          <button onClick={() => updateAppointment(appt.id, "rejected")}
-                            className="text-sm bg-red-800 hover:bg-red-700 text-white px-4 py-1.5 rounded-lg transition font-medium">
-                            Reddet
-                          </button>
-                        </>
-                      )}
-                      {role === "student" && slot.is_available && requestingSlot !== slot.id && (
-                        <button onClick={() => setRequestingSlot(slot.id)}
-                          className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg transition font-medium">
-                          Randevu Talep Et
-                        </button>
-                      )}
-                      {role === "student" && appt?.status === "pending" && (
-                        <button onClick={() => cancelAppointment(appt.id)}
-                          className="text-sm border border-red-900 text-red-400 hover:bg-red-950 px-3 py-1.5 rounded-lg transition">
-                          İptal Et
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Randevu detayı */}
-                  {(role === "teacher" || role === "admin") && appt && (
-                    <div className="mt-4 pt-4 border-t border-gray-700 flex flex-wrap gap-6">
+          {/* ÖĞRENCİ: Kendi talepleri */}
+          {role === "student" && (
+            <div>
+              <h3 className="text-white font-semibold mb-3">Taleplerim</h3>
+              {appointments.length === 0 ? (
+                <div className="text-center py-10 text-gray-500 bg-gray-800 border border-gray-700 rounded-2xl text-sm">
+                  Henüz bir ders talebi göndermediniz.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {[...appointments].sort((a, b) => b.date.localeCompare(a.date)).map(appt => (
+                    <div key={appt.id} className="bg-gray-800 border border-gray-700 rounded-xl p-4 flex items-center justify-between gap-4 flex-wrap">
                       <div>
-                        <div className="text-xs text-gray-500 mb-1">Öğrenci</div>
-                        <div className="text-white font-medium">{appt.student_username}</div>
+                        <div className="text-white font-semibold tabular-nums">{appt.date} — {appt.start_time}</div>
+                        {appt.student_note && <div className="text-gray-400 text-xs mt-0.5 italic">"{appt.student_note}"</div>}
+                        {appt.teacher_note && <div className="text-blue-300 text-xs mt-1">Öğretmen: "{appt.teacher_note}"</div>}
                       </div>
-                      {appt.student_note && (
-                        <div>
-                          <div className="text-xs text-gray-500 mb-1">Not</div>
-                          <div className="text-gray-300 italic">"{appt.student_note}"</div>
-                        </div>
-                      )}
+                      <span className={`text-xs px-2.5 py-1 rounded-full shrink-0 ${statusBadge[appt.status]}`}>
+                        {statusLabel[appt.status]}
+                      </span>
                     </div>
-                  )}
-
-                  {role === "student" && appt?.teacher_note && (
-                    <div className="mt-4 pt-4 border-t border-gray-700">
-                      <div className="text-xs text-gray-500 mb-1">Öğretmen notu</div>
-                      <div className="text-gray-300 italic">"{appt.teacher_note}"</div>
-                    </div>
-                  )}
-
-                  {/* Student: randevu talep formu */}
-                  {role === "student" && slot.is_available && requestingSlot === slot.id && (
-                    <div className="mt-4 pt-4 border-t border-gray-700 flex gap-2 flex-wrap items-center">
-                      <input
-                        className="flex-1 min-w-48 bg-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600"
-                        placeholder="Not ekle (isteğe bağlı)"
-                        value={requestNote}
-                        onChange={e => setRequestNote(e.target.value)}
-                      />
-                      <button onClick={() => requestAppointment(slot.id)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-                        Gönder
-                      </button>
-                      <button onClick={() => setRequestingSlot(null)}
-                        className="text-gray-400 hover:text-white px-3 py-2 rounded-lg text-sm transition">
-                        Vazgeç
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Admin: geçmiş talepler */}
-                  {role === "admin" && history.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-700">
-                      <div className="text-xs text-gray-500 mb-2">Geçmiş talepler</div>
-                      <div className="flex flex-wrap gap-2">
-                        {history.map(h => (
-                          <span key={h.id} className={`text-xs px-2 py-1 rounded-full ${statusBadge[h.status]}`}>
-                            {h.student_username} — {statusLabel[h.status]}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  ))}
                 </div>
-              )
-            })
+              )}
+            </div>
+          )}
+
+          {/* ÖĞRETMEN / ADMİN: Talep listesi */}
+          {(role === "teacher" || role === "admin") && (
+            <>
+              {role === "admin" && (
+                <div className="grid grid-cols-5 gap-3">
+                  {[
+                    { label: "Toplam",     value: counts.total,     color: "bg-gray-700 border-gray-600" },
+                    { label: "Bekliyor",   value: counts.pending,   color: "bg-yellow-950 border-yellow-800" },
+                    { label: "Onaylandı",  value: counts.approved,  color: "bg-green-950 border-green-800" },
+                    { label: "Reddedildi", value: counts.rejected,  color: "bg-red-950 border-red-900" },
+                    { label: "İptal",      value: counts.cancelled, color: "bg-gray-800 border-gray-700" },
+                  ].map(stat => (
+                    <div key={stat.label} className={`${stat.color} border rounded-xl p-4 text-center`}>
+                      <div className="text-3xl font-bold text-white">{stat.value}</div>
+                      <div className="text-xs text-gray-400 mt-1">{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div>
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <h3 className="text-white font-semibold text-lg">Ders Talepleri</h3>
+                  <div className="flex gap-1 flex-wrap">
+                    {["all","pending","approved","rejected","cancelled"].map(s => (
+                      <button key={s} onClick={() => setStatusFilter(s)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border
+                          ${statusFilter === s ? "bg-blue-600 border-blue-500 text-white" : "bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700"}`}>
+                        {s === "all" ? "Tümü" : statusLabel[s]}
+                        {s !== "all" && <span className="ml-1 opacity-60">({counts[s]})</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-700 text-gray-400 text-xs uppercase tracking-wide">
+                        <th className="text-left px-5 py-3">Öğrenci</th>
+                        <th className="text-left px-5 py-3">Tarih / Saat</th>
+                        <th className="text-left px-5 py-3">Not</th>
+                        <th className="text-left px-5 py-3">Durum</th>
+                        <th className="text-right px-5 py-3">İşlem</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAppointments.map(appt => {
+                        const isInactive = ["rejected","cancelled"].includes(appt.status)
+                        return (
+                          <tr key={appt.id} className={`border-t border-gray-700 ${isInactive ? "opacity-40" : ""}`}>
+                            <td className="px-5 py-4 text-white font-medium">{appt.student_username}</td>
+                            <td className="px-5 py-4 text-gray-300 tabular-nums">{appt.date} {appt.start_time}</td>
+                            <td className="px-5 py-4 text-gray-400 italic max-w-xs truncate">{appt.student_note || "—"}</td>
+                            <td className="px-5 py-4">
+                              <span className={`text-xs px-2.5 py-1 rounded-full ${statusBadge[appt.status]}`}>{statusLabel[appt.status]}</span>
+                            </td>
+                            <td className="px-5 py-4 text-right">
+                              <div className="flex gap-2 justify-end">
+                                {appt.status === "pending" && (
+                                  <>
+                                    <button onClick={() => updateAppointment(appt.id, "approved")} className="text-green-400 hover:text-green-300 text-sm">Onayla</button>
+                                    <button onClick={() => updateAppointment(appt.id, "rejected")} className="text-red-400 hover:text-red-300 text-sm">Reddet</button>
+                                  </>
+                                )}
+                                {role === "admin" && (
+                                  <button onClick={() => deleteAppointment(appt.id)} className="text-gray-500 hover:text-red-400 text-sm">Sil</button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                      {filteredAppointments.length === 0 && (
+                        <tr><td colSpan={5} className="px-5 py-10 text-center text-gray-500">Bu durumda talep yok.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
-
-      {/* Admin: istatistikler + tablo */}
-      {role === "admin" && appointments.length > 0 && (
-        <>
-          <div className="grid grid-cols-5 gap-3">
-            {[
-              { label: "Toplam", value: counts.total, color: "bg-gray-700 border-gray-600" },
-              { label: "Bekliyor", value: counts.pending, color: "bg-yellow-950 border-yellow-800" },
-              { label: "Onaylandı", value: counts.approved, color: "bg-green-950 border-green-800" },
-              { label: "Reddedildi", value: counts.rejected, color: "bg-red-950 border-red-900" },
-              { label: "İptal", value: counts.cancelled, color: "bg-gray-800 border-gray-700" },
-            ].map(stat => (
-              <div key={stat.label} className={`${stat.color} border rounded-xl p-4 text-center`}>
-                <div className="text-3xl font-bold text-white">{stat.value}</div>
-                <div className="text-xs text-gray-400 mt-1">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <h3 className="text-white font-semibold text-lg">Tüm Randevular</h3>
-              <div className="flex gap-1 flex-wrap">
-                {["all","pending","approved","rejected","cancelled"].map(s => (
-                  <button key={s} onClick={() => setStatusFilter(s)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border
-                      ${statusFilter === s ? "bg-blue-600 border-blue-500 text-white" : "bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700"}`}>
-                    {s === "all" ? "Tümü" : statusLabel[s]}
-                    {s !== "all" && <span className="ml-1 opacity-60">({counts[s]})</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-700 text-gray-400 text-xs uppercase tracking-wide">
-                    <th className="text-left px-5 py-3">Öğrenci</th>
-                    <th className="text-left px-5 py-3">Tarih / Saat</th>
-                    <th className="text-left px-5 py-3">Not</th>
-                    <th className="text-left px-5 py-3">Durum</th>
-                    <th className="text-right px-5 py-3">İşlem</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAppointments.map(appt => {
-                    const slot = slots.find(s => s.id === appt.slot_id)
-                    const isInactive = ["rejected","cancelled"].includes(appt.status)
-                    return (
-                      <tr key={appt.id} className={`border-t border-gray-700 ${isInactive ? "opacity-40" : ""}`}>
-                        <td className="px-5 py-4 text-white font-medium">{appt.student_username}</td>
-                        <td className="px-5 py-4 text-gray-300 tabular-nums">
-                          {slot ? <>{slot.date} {slot.start_time}–{slot.end_time}</> : "—"}
-                        </td>
-                        <td className="px-5 py-4 text-gray-400 italic max-w-xs truncate">{appt.student_note || "—"}</td>
-                        <td className="px-5 py-4">
-                          <span className={`text-xs px-2.5 py-1 rounded-full ${statusBadge[appt.status]}`}>{statusLabel[appt.status]}</span>
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <div className="flex gap-2 justify-end">
-                            {appt.status === "pending" && (
-                              <>
-                                <button onClick={() => updateAppointment(appt.id, "approved")} className="text-green-400 hover:text-green-300 text-sm">Onayla</button>
-                                <button onClick={() => updateAppointment(appt.id, "rejected")} className="text-red-400 hover:text-red-300 text-sm">Reddet</button>
-                              </>
-                            )}
-                            <button onClick={() => deleteAppointment(appt.id)} className="text-gray-500 hover:text-red-400 text-sm">Sil</button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                  {filteredAppointments.length === 0 && (
-                    <tr><td colSpan={5} className="px-5 py-10 text-center text-gray-500">Bu durumda randevu yok.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Teacher: randevu tablosu */}
-      {role === "teacher" && appointments.length > 0 && (
-        <div>
-          <h3 className="text-white font-semibold text-lg mb-3">Randevular</h3>
-          <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-700 text-gray-400 text-xs uppercase tracking-wide">
-                  <th className="text-left px-5 py-3">Öğrenci</th>
-                  <th className="text-left px-5 py-3">Tarih / Saat</th>
-                  <th className="text-left px-5 py-3">Not</th>
-                  <th className="text-left px-5 py-3">Durum</th>
-                  <th className="text-right px-5 py-3">İşlem</th>
-                </tr>
-              </thead>
-              <tbody>
-                {appointments.map(appt => {
-                  const slot = slots.find(s => s.id === appt.slot_id)
-                  return (
-                    <tr key={appt.id} className="border-t border-gray-700">
-                      <td className="px-5 py-4 text-white font-medium">{appt.student_username}</td>
-                      <td className="px-5 py-4 text-gray-300">{slot ? `${slot.date} ${slot.start_time}–${slot.end_time}` : "—"}</td>
-                      <td className="px-5 py-4 text-gray-400 italic max-w-xs truncate">{appt.student_note || "—"}</td>
-                      <td className="px-5 py-4">
-                        <span className={`text-xs px-2.5 py-1 rounded-full ${statusBadge[appt.status]}`}>{statusLabel[appt.status]}</span>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        {appt.status === "pending" && (
-                          <div className="flex gap-2 justify-end">
-                            <button onClick={() => updateAppointment(appt.id, "approved")} className="text-green-400 hover:text-green-300 text-sm">Onayla</button>
-                            <button onClick={() => updateAppointment(appt.id, "rejected")} className="text-red-400 hover:text-red-300 text-sm">Reddet</button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
+
 
 // ── DASHBOARD ───────────────────────────────────────────────────────
 
@@ -1080,19 +892,23 @@ export default function App() {
   const [token, setToken] = useState(null)
   const [username, setUsername] = useState("")
   const [role, setRole] = useState("")
+  const [page, setPage] = useState("landing") // "landing" | "login"
 
   const handleLogin = (token, username, role) => {
     setToken(token)
     setUsername(username)
     setRole(role)
+    setPage("dashboard")
   }
 
   const handleLogout = () => {
     setToken(null)
     setUsername("")
     setRole("")
+    setPage("landing")
   }
 
-  if (!token) return <Login onLogin={handleLogin} />
-  return <Dashboard token={token} username={username} role={role} onLogout={handleLogout} />
+  if (token) return <Dashboard token={token} username={username} role={role} onLogout={handleLogout} />
+  if (page === "login") return <Login onLogin={handleLogin} onBack={() => setPage("landing")} />
+  return <LandingPage onGoLogin={() => setPage("login")} />
 }
