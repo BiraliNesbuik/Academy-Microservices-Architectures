@@ -274,9 +274,20 @@ function CalendarTab({ token, username, role }) {
 
   const monthGrid = getMonthGrid(viewYear, viewMonth)
 
-  // Öğrenci: yaklaşan onaylı dersler
+  // Öğrenci: yaklaşan onaylı dersler (bugün ve sonrası)
   const upcomingApproved = appointments
     .filter(a => a.status === "approved" && a.date >= todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))
+
+  // Öğretmen/Admin: önümüzdeki 2 saat içindeki onaylı dersler
+  const now = new Date()
+  const in2h = new Date(now.getTime() + 2 * 60 * 60 * 1000)
+  const upcomingTeacher = appointments
+    .filter(a => {
+      if (a.status !== "approved") return false
+      const lessonTime = new Date(`${a.date}T${a.start_time}:00`)
+      return lessonTime >= now && lessonTime <= in2h
+    })
     .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))
 
   return (
@@ -285,6 +296,37 @@ function CalendarTab({ token, username, role }) {
       {message && (
         <div className={`px-4 py-3 rounded-lg text-sm font-medium ${messageType === "success" ? "bg-green-900 border border-green-700 text-green-200" : "bg-red-900 border border-red-700 text-red-200"}`}>
           {message}
+        </div>
+      )}
+
+      {/* ── ÖĞRETMEN / ADMİN: 2 saat içindeki dersler ── */}
+      {(role === "teacher" || role === "admin") && upcomingTeacher.length > 0 && (
+        <div className="bg-orange-950 border border-orange-800 rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">🔔</span>
+            <h3 className="text-orange-300 font-semibold">Yaklaşan Dersler</h3>
+            <span className="text-xs bg-orange-900 border border-orange-700 text-orange-300 px-2 py-0.5 rounded-full ml-1">
+              2 saat içinde
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {upcomingTeacher.map(a => {
+              const d = new Date(a.date + "T00:00:00")
+              const lessonTime = new Date(`${a.date}T${a.start_time}:00`)
+              const diffMins = Math.round((lessonTime - now) / 60000)
+              return (
+                <div key={a.id} className="bg-orange-900 border border-orange-700 rounded-xl px-4 py-3 flex flex-col gap-1 min-w-44">
+                  <div className="text-orange-200 text-xs">{DAYS_TR[(d.getDay() + 6) % 7]}, {d.getDate()} {MONTHS_TR[d.getMonth()]}</div>
+                  <div className="text-white font-bold tabular-nums text-lg">{a.start_time}</div>
+                  <div className="text-orange-300 font-medium text-sm">{a.student_username}</div>
+                  <div className="text-orange-400 text-xs">
+                    {diffMins < 60 ? `${diffMins} dakika sonra` : `${Math.floor(diffMins / 60)} saat ${diffMins % 60} dk sonra`}
+                  </div>
+                  {a.student_note && <div className="text-orange-300 text-xs italic mt-1">"{a.student_note}"</div>}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
